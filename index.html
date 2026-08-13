@@ -2,118 +2,110 @@
 <html lang="sv">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0" />
+<meta name="theme-color" id="themeColor" content="#2563eb" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Gymnasieschema" />
+<meta name="format-detection" content="telephone=no" />
 <title>Gymnasieschema</title>
 <style>
   :root{
-    --bg:#eef2f6;
-    --panel:#ffffff;
-    --ink:#1c2733;
-    --muted:#64748b;
-    --line:#dbe2ea;
-    --accent:#2563eb;
-    --accent-dark:#1d4ed8;
-    --green:#16a34a;
-    --amber:#d97706;
-    --red:#dc2626;
+    --bg:#eef2f6; --panel:#ffffff; --ink:#1c2733; --heading:#1c2733; --muted:#64748b;
+    --line:#dbe2ea; --accent:#2563eb; --accent-dark:#1d4ed8;
+    --green:#16a34a; --amber:#d97706; --red:#dc2626; --shared:#7c3aed;
     --shadow:0 1px 3px rgba(15,23,42,.08),0 6px 20px rgba(15,23,42,.06);
-    --radius:12px;
+    --radius:12px; --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+    --safe-l:env(safe-area-inset-left,0px); --safe-r:env(safe-area-inset-right,0px);
   }
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0;height:100%}
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  html,body{margin:0;padding:0;min-height:100%}
   body{
-    font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;
-    background:var(--bg);color:var(--ink);line-height:1.45;font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.45;font-size:15px;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;
   }
   a{color:var(--accent)}
   button{font-family:inherit}
+  input,select,textarea{font-size:16px}/* 16px = ingen auto-zoom på iOS */
 
   header.app{
     background:var(--panel);border-bottom:1px solid var(--line);
-    display:flex;align-items:center;gap:16px;padding:12px 20px;
-    position:sticky;top:0;z-index:40;box-shadow:0 1px 2px rgba(15,23,42,.04);
-    flex-wrap:wrap;
+    display:flex;align-items:center;gap:14px;
+    padding:calc(10px + var(--safe-t)) calc(16px + var(--safe-r)) 10px calc(16px + var(--safe-l));
+    position:sticky;top:0;z-index:40;box-shadow:0 1px 2px rgba(15,23,42,.04);flex-wrap:wrap;
   }
   header.app .brand{display:flex;align-items:center;gap:12px}
   header.app .mark{
-    width:40px;height:40px;border-radius:11px;flex:0 0 auto;
+    width:42px;height:42px;border-radius:12px;flex:0 0 auto;
     background:linear-gradient(135deg,var(--accent),#0ea5e9);
-    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;overflow:hidden;
   }
-  header.app h1{margin:0;font-size:17px;letter-spacing:.2px}
+  header.app .mark img{width:100%;height:100%;object-fit:cover}
+  header.app h1{margin:0;font-size:18px;letter-spacing:.2px;color:var(--heading)}
   header.app .sub{margin:0;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px}
   header.app .spacer{flex:1}
 
   .tabs{display:flex;gap:4px;flex-wrap:wrap}
   .tabs button{
-    border:none;background:transparent;padding:8px 14px;cursor:pointer;
-    font-size:13px;font-weight:600;color:var(--muted);border-radius:8px;
+    border:none;background:transparent;padding:9px 13px;cursor:pointer;
+    font-size:13px;font-weight:600;color:var(--muted);border-radius:9px;min-height:40px;
   }
   .tabs button.active{background:var(--accent);color:#fff}
   .tabs button:hover:not(.active){background:#eaf0fb}
 
-  .who{display:flex;align-items:center;gap:8px;font-size:12px}
-  .who select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:12px}
-  .conn-dot{width:9px;height:9px;border-radius:50%;background:#94a3b8;display:inline-block}
-  .conn-dot.on{background:var(--green)}
-  .conn-dot.err{background:var(--red)}
+  .who{display:flex;align-items:center;gap:8px;font-size:13px;flex-wrap:wrap}
+  .who select{padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:14px;min-height:40px}
+  .who .me{display:inline-flex;align-items:center;gap:7px;font-weight:600}
+  .who .ava{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
+  .conn-dot{width:10px;height:10px;border-radius:50%;background:#94a3b8;display:inline-block}
+  .conn-dot.on{background:var(--green)} .conn-dot.err{background:var(--red)}
 
-  main{max-width:1400px;margin:0 auto;padding:18px 20px 60px}
+  main{max-width:1400px;margin:0 auto;padding:16px calc(16px + var(--safe-r)) calc(60px + var(--safe-b)) calc(16px + var(--safe-l))}
 
-  .btn{
-    background:var(--accent);color:#fff;border:none;border-radius:9px;
-    padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;
-  }
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 15px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;min-height:42px}
   .btn:hover{background:var(--accent-dark)}
   .btn.ghost{background:#fff;color:var(--accent);border:1.5px solid var(--accent)}
   .btn.ghost:hover{background:#eff5ff}
   .btn.subtle{background:#eef2f6;color:var(--ink);border:1px solid var(--line)}
   .btn.subtle:hover{background:#e2e8f0}
-  .btn.danger{background:var(--red)}
-  .btn.danger:hover{background:#b91c1c}
-  .btn.sm{padding:6px 10px;font-size:12px}
-  .icon-btn{background:transparent;border:none;cursor:pointer;color:var(--muted);padding:4px;border-radius:6px;font-size:14px}
+  .btn.danger{background:var(--red)} .btn.danger:hover{background:#b91c1c}
+  .btn.sm{padding:7px 11px;font-size:13px;min-height:36px}
+  .icon-btn{background:transparent;border:none;cursor:pointer;color:var(--muted);padding:7px;border-radius:8px;font-size:16px;min-width:36px;min-height:36px}
   .icon-btn:hover{background:#eef2f6;color:var(--ink)}
 
-  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
-  .search{
-    display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);
-    border-radius:10px;padding:8px 12px;min-width:240px;flex:1;max-width:420px;
-  }
-  .search input{border:none;outline:none;font-size:14px;width:100%;background:transparent}
-  select.f,input.f{padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:13px}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:9px 12px;min-width:200px;flex:1;max-width:420px}
+  .search input{border:none;outline:none;font-size:16px;width:100%;background:transparent}
+  select.f,input.f{padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:15px;min-height:42px}
+  label.chk{display:inline-flex;align-items:center;gap:7px;font-size:14px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;min-height:42px}
 
-  .weekbar{
-    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
-    padding:10px 14px;margin-bottom:14px;box-shadow:var(--shadow);
-  }
-  .weekbar .wk-title{font-weight:700;font-size:15px}
-  .weekbar .wk-range{color:var(--muted);font-size:13px}
-  .weekbar .jump{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#fff}
+  .seg button{border:none;background:#fff;padding:9px 14px;cursor:pointer;font-size:14px;font-weight:600;color:var(--muted);min-height:42px}
+  .seg button.active{background:var(--accent);color:#fff}
 
-  .persons{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
-  .person-chip{
-    display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);
-    border-radius:999px;padding:5px 10px 5px 8px;font-size:13px;cursor:pointer;user-select:none;
-  }
+  .navbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px;box-shadow:var(--shadow)}
+  .navbar .title{font-weight:700;font-size:16px;color:var(--heading)}
+  .navbar .range{color:var(--muted);font-size:13px}
+  .navbar .grow{flex:1}
+
+  .persons{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .person-chip{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 12px 6px 8px;font-size:14px;cursor:pointer;user-select:none;min-height:40px}
   .person-chip.off{opacity:.4}
-  .person-chip .swatch{width:14px;height:14px;border-radius:50%}
-  .person-chip .cog{color:var(--muted);font-size:12px}
+  .person-chip .ava{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px}
 
-  /* WEEK GRID */
   .grid-wrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
-  .grid-scroll{overflow-x:auto}
-  .wgrid{display:grid;min-width:760px}
+  .grid-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .wgrid{display:grid;min-width:640px}
+  .wgrid.usercols{min-width:520px}
   .wgrid .corner{background:#f8fafc;border-bottom:1px solid var(--line);border-right:1px solid var(--line)}
-  .wgrid .dayhead{
-    background:#f8fafc;border-bottom:1px solid var(--line);border-right:1px solid var(--line);
-    padding:8px 10px;text-align:center;position:sticky;top:0;
-  }
-  .wgrid .dayhead .dn{font-weight:700;font-size:13px;text-transform:capitalize}
+  .wgrid .dayhead{background:#f8fafc;border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:9px 8px;text-align:center;position:sticky;top:0;z-index:3}
+  .wgrid .dayhead .dn{font-weight:700;font-size:14px;text-transform:capitalize}
   .wgrid .dayhead .dd{font-size:11px;color:var(--muted)}
   .wgrid .dayhead.today{background:#eff6ff}
   .wgrid .dayhead.today .dn{color:var(--accent)}
+  .wgrid .dayhead .uava{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:12px;margin-right:5px;vertical-align:middle}
 
   .allday-row{border-bottom:1px dashed var(--line)}
   .allday-cell{border-right:1px solid var(--line);padding:5px;min-height:34px;display:flex;flex-direction:column;gap:4px}
@@ -126,105 +118,133 @@
   .nowline{position:absolute;left:0;right:0;border-top:2px solid var(--red);z-index:5}
   .nowline::before{content:"";position:absolute;left:-4px;top:-4px;width:7px;height:7px;border-radius:50%;background:var(--red)}
 
-  .event{
-    position:absolute;left:3px;right:3px;border-radius:8px;padding:4px 6px;overflow:hidden;cursor:pointer;
-    color:#fff;font-size:11px;border-left:4px solid rgba(0,0,0,.25);box-shadow:0 1px 2px rgba(0,0,0,.15);
-  }
+  .event{position:absolute;left:3px;right:3px;border-radius:8px;padding:4px 6px;overflow:hidden;cursor:pointer;color:#fff;font-size:12px;border-left:4px solid rgba(0,0,0,.28);box-shadow:0 1px 2px rgba(0,0,0,.15)}
   .event:hover{filter:brightness(1.05);z-index:8}
   .event .et{font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .event .em{opacity:.9;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .event.task{border-left-style:dashed}
+  .event .em{opacity:.92;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* Uppgifter: annan raster (streckad ram + diagonalt raster), men samma användarfärg */
+  .event.task{border-left-style:dashed;border-top:1px dashed rgba(255,255,255,.6);
+    background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.22) 0 5px,rgba(255,255,255,0) 5px 11px)}
   .event.done{opacity:.55;text-decoration:line-through}
-  .event .badge{font-size:9px;background:rgba(255,255,255,.25);border-radius:4px;padding:0 4px;margin-left:4px}
+  .event.shared{border-left-width:5px;border-left-color:rgba(255,255,255,.75);box-shadow:0 0 0 2px rgba(255,255,255,.4) inset}
+  .event .badge{font-size:9px;background:rgba(255,255,255,.28);border-radius:4px;padding:0 4px;margin-left:4px}
 
-  .chip-ad{
-    border-radius:6px;padding:2px 6px;font-size:11px;color:#fff;cursor:pointer;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid rgba(0,0,0,.25);
-  }
-  .chip-ad.task{border-left-style:dashed}
+  .chip-ad{border-radius:6px;padding:3px 7px;font-size:12px;color:#fff;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid rgba(0,0,0,.25)}
+  .chip-ad.task{border-left-style:dashed;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.22) 0 5px,rgba(255,255,255,0) 5px 11px)}
   .chip-ad.done{opacity:.55;text-decoration:line-through}
 
-  /* TASK / LIST PANELS */
-  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
-  .card h3{margin:0 0 6px;font-size:15px}
-  .stat{display:flex;gap:14px;flex-wrap:wrap}
-  .stat .box{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow);min-width:120px}
-  .stat .box .n{font-size:22px;font-weight:800}
-  .stat .box .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  /* MONTH */
+  .mgrid{display:grid;grid-template-columns:repeat(7,1fr);background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  .mgrid .mhd{background:#f8fafc;border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:7px;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+  .mcell{border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-height:104px;padding:5px;display:flex;flex-direction:column;gap:3px;cursor:pointer}
+  .mcell.other{background:#fafbfc;opacity:.7}
+  .mcell.today{background:#eff6ff}
+  .mcell .mdn{font-size:12px;font-weight:700;color:var(--muted)}
+  .mcell.today .mdn{color:var(--accent)}
+  .mcell .more{font-size:10px;color:var(--muted)}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+  .card h3{margin:0 0 6px;font-size:16px;color:var(--heading)}
+  .card.full{grid-column:1/-1}
+  .stat{display:flex;gap:12px;flex-wrap:wrap}
+  .stat .box{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow);min-width:110px}
+  .stat .box .n{font-size:22px;font-weight:800} .stat .box .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 
   table.list{width:100%;border-collapse:collapse;background:var(--panel);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
-  table.list th,table.list td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:13px;vertical-align:top}
+  table.list th,table.list td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
   table.list th{background:#f8fafc;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
   table.list tr:hover td{background:#f8fbff}
-  .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600}
-  .tag.activity{background:#dbeafe;color:#1e40af}
-  .tag.task{background:#fef3c7;color:#92400e}
-  .tag.done{background:#dcfce7;color:#166534}
-  .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle}
-  .muted{color:var(--muted)}
-  .empty{padding:40px;text-align:center;color:var(--muted)}
+  .tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600}
+  .tag.activity{background:#dbeafe;color:#1e40af} .tag.task{background:#fef3c7;color:#92400e}
+  .tag.done{background:#dcfce7;color:#166534} .tag.shared{background:#ede9fe;color:#5b21b6} .tag.manual{background:#e0f2fe;color:#075985}
+  .dot{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle}
+  .muted{color:var(--muted)} .empty{padding:40px;text-align:center;color:var(--muted)}
 
-  /* MODAL */
-  .overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:30px 16px;overflow:auto}
+  .overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:24px 14px;overflow:auto}
   .overlay.show{display:flex}
-  .modal{background:#fff;border-radius:16px;width:100%;max-width:560px;box-shadow:0 20px 60px rgba(15,23,42,.3);animation:pop .12s ease}
-  .modal.wide{max-width:820px}
+  .modal{background:#fff;border-radius:16px;width:100%;max-width:560px;box-shadow:0 20px 60px rgba(15,23,42,.3);animation:pop .12s ease;margin-bottom:24px}
+  .modal.wide{max-width:860px}
   @keyframes pop{from{transform:translateY(8px);opacity:.6}to{transform:none;opacity:1}}
   .modal .mh{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line)}
-  .modal .mh h2{margin:0;font-size:16px}
+  .modal .mh h2{margin:0;font-size:17px}
   .modal .mh .spacer{flex:1}
-  .modal .mb{padding:18px 20px;max-height:70vh;overflow:auto}
+  .modal .mb{padding:18px 20px;max-height:72vh;overflow:auto;-webkit-overflow-scrolling:touch}
   .modal .mf{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
   .field{margin-bottom:14px}
   .field label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px}
-  .field input,.field select,.field textarea{
-    width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:#fff;font-family:inherit;
-  }
+  .field input,.field select,.field textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;font-size:16px;background:#fff;font-family:inherit}
   .field textarea{min-height:70px;resize:vertical}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-  .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
-  .seg button{flex:1;border:none;background:#fff;padding:9px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
-  .seg button.active{background:var(--accent);color:#fff}
   .hint{font-size:12px;color:var(--muted);margin-top:4px}
-  .hstep{display:flex;gap:8px;align-items:center;font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .hstep{display:flex;gap:8px;align-items:center;font-size:14px;padding:8px 0;border-bottom:1px solid var(--line)}
   .hstep:last-child{border-bottom:none}
-  .hstep .act{font-weight:700;font-size:11px;padding:1px 7px;border-radius:5px}
-  .hstep .act.create{background:#dcfce7;color:#166534}
+  .hstep .act{font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px}
+  .hstep .act.create,.hstep .act.import{background:#dcfce7;color:#166534}
   .hstep .act.update{background:#dbeafe;color:#1e40af}
   .hstep .act.delete{background:#fee2e2;color:#991b1b}
-  .hstep .act.import{background:#f3e8ff;color:#6b21a8}
+  .batch{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 0;border-bottom:1px solid var(--line)}
+  .batch:last-child{border-bottom:none}
+  .batch .kind{font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px;background:#f3e8ff;color:#6b21a8}
+  .batch .kind.csv{background:#e0f2fe;color:#075985} .batch .kind.ics{background:#dcfce7;color:#166534}
+  .batch .kind.feed{background:#fef3c7;color:#92400e} .batch .kind.image{background:#fce7f3;color:#9d174d}
   .code{background:#0f172a;color:#e2e8f0;border-radius:10px;padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;overflow:auto;white-space:pre;max-height:340px}
-  .pill-file{display:inline-flex;align-items:center;gap:8px;background:#eff5ff;border:1px dashed var(--accent);color:var(--accent);border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:600}
+  .pill-file{display:inline-flex;align-items:center;gap:8px;background:#eff5ff;border:1px dashed var(--accent);color:var(--accent);border-radius:10px;padding:11px 15px;cursor:pointer;font-weight:600}
   .preview-tbl{width:100%;border-collapse:collapse;font-size:12px}
   .preview-tbl th,.preview-tbl td{border:1px solid var(--line);padding:5px 7px;text-align:left;white-space:nowrap}
   .preview-tbl th{background:#f8fafc}
-  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;z-index:200;box-shadow:var(--shadow);opacity:0;transition:opacity .2s,transform .2s}
+  .toast{position:fixed;bottom:calc(20px + var(--safe-b));left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:12px 18px;border-radius:10px;font-size:14px;z-index:200;box-shadow:var(--shadow);opacity:0;transition:opacity .2s,transform .2s;max-width:90vw;text-align:center}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
-  .switch{position:relative;display:inline-block;width:38px;height:22px}
+  .switch{position:relative;display:inline-block;width:44px;height:26px;flex:0 0 auto}
   .switch input{display:none}
   .switch .sl{position:absolute;inset:0;background:#cbd5e1;border-radius:999px;transition:.2s;cursor:pointer}
-  .switch .sl::before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+  .switch .sl::before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
   .switch input:checked+.sl{background:var(--green)}
-  .switch input:checked+.sl::before{transform:translateX(16px)}
-  @media(max-width:620px){
+  .switch input:checked+.sl::before{transform:translateX(18px)}
+  .swatches{display:flex;gap:8px;flex-wrap:wrap}
+  .swatches button{width:34px;height:34px;border-radius:9px;cursor:pointer}
+  .ptoggle{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:14px;background:#fff;min-height:40px}
+  .ptoggle.on{border-color:var(--accent);background:#eff5ff;color:var(--accent);font-weight:600}
+
+  /* LOCK / LOGIN */
+  #lockOverlay{position:fixed;inset:0;background:linear-gradient(160deg,#0f172a,#1e293b);display:none;align-items:center;justify-content:center;z-index:300;padding:24px;padding-top:calc(24px + var(--safe-t));padding-bottom:calc(24px + var(--safe-b))}
+  #lockOverlay.show{display:flex}
+  .lockcard{background:#fff;border-radius:20px;max-width:440px;width:100%;padding:26px;box-shadow:0 30px 80px rgba(0,0,0,.5);max-height:92vh;overflow:auto}
+  .lock-logo{width:60px;height:60px;border-radius:16px;background:linear-gradient(135deg,var(--accent),#0ea5e9);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;margin:0 auto 12px;overflow:hidden}
+  .lock-logo img{width:100%;height:100%;object-fit:cover}
+  .lockcard h2{margin:0 0 2px;text-align:center;font-size:22px}
+  .lockcard .muted{text-align:center}
+  .lock-users{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}
+  .lock-user{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff;cursor:pointer;font-size:15px;font-weight:600;min-height:56px}
+  .lock-user:hover{border-color:var(--accent);background:#eff5ff}
+  .lock-ava{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;flex:0 0 auto}
+  .pinpad{margin-top:8px}
+  .pininput{letter-spacing:8px;text-align:center;font-size:22px}
+
+  @media(max-width:720px){
     .row2,.row3{grid-template-columns:1fr}
-    header.app{gap:10px}
+    header.app{gap:8px} header.app h1{font-size:16px}
+    .cards{grid-template-columns:1fr}
+    .lock-users{grid-template-columns:1fr}
+    .mcell{min-height:78px}
+    main{padding-left:calc(12px + var(--safe-l));padding-right:calc(12px + var(--safe-r))}
+    table.list th:nth-child(n+5),table.list td:nth-child(n+5){display:none}
   }
 </style>
 </head>
 <body>
 <header class="app">
   <div class="brand">
-    <div class="mark">GS</div>
+    <div class="mark" id="brandMark">GS</div>
     <div>
       <h1>Gymnasieschema</h1>
       <p class="sub">Veckoplanering &amp; ansvar</p>
     </div>
   </div>
   <nav class="tabs" id="tabs">
-    <button data-tab="week" class="active">Schema</button>
+    <button data-tab="schedule" class="active">Schema</button>
+    <button data-tab="shared">Gemensamt</button>
     <button data-tab="tasks">Uppgifter</button>
     <button data-tab="list">Lista</button>
     <button data-tab="history">Historik</button>
@@ -232,9 +252,10 @@
   </nav>
   <div class="spacer"></div>
   <div class="who">
-    <span>Inloggad som</span>
-    <select id="whoSelect" title="Vem administrerar just nu"></select>
-    <span class="conn-dot" id="connDot" title="Lagring: lokal"></span>
+    <span class="me" id="whoMe"></span>
+    <select id="whoSelect" title="Skapa poster som" style="display:none"></select>
+    <button class="icon-btn" id="logoutBtn" title="Logga ut / byt användare">⎋</button>
+    <span class="conn-dot" id="connDot" title="Lagring"></span>
   </div>
 </header>
 
@@ -243,20 +264,20 @@
 <!-- Editor modal -->
 <div class="overlay" id="editorOverlay">
   <div class="modal" role="dialog" aria-modal="true">
-    <div class="mh"><h2 id="editorTitle">Ny aktivitet</h2><div class="spacer"></div><button class="icon-btn" onclick="closeEditor()">✕</button></div>
+    <div class="mh"><h2 id="editorTitle">Ny post</h2><div class="spacer"></div><button class="icon-btn" onclick="closeEditor()">✕</button></div>
     <div class="mb" id="editorBody"></div>
     <div class="mf">
       <button class="btn danger" id="editorDelete" style="margin-right:auto;display:none" onclick="deleteFromEditor()">Ta bort</button>
       <button class="btn subtle" onclick="closeEditor()">Avbryt</button>
-      <button class="btn" onclick="saveFromEditor()">Spara</button>
+      <button class="btn" id="editorSave" onclick="saveFromEditor()">Spara</button>
     </div>
   </div>
 </div>
 
 <!-- Person modal -->
 <div class="overlay" id="personOverlay">
-  <div class="modal" style="max-width:440px" role="dialog" aria-modal="true">
-    <div class="mh"><h2 id="personTitle">Person</h2><div class="spacer"></div><button class="icon-btn" onclick="closePerson()">✕</button></div>
+  <div class="modal" style="max-width:480px" role="dialog" aria-modal="true">
+    <div class="mh"><h2 id="personTitle">Användare</h2><div class="spacer"></div><button class="icon-btn" onclick="closePerson()">✕</button></div>
     <div class="mb" id="personBody"></div>
     <div class="mf">
       <button class="btn danger" id="personDelete" style="margin-right:auto;display:none" onclick="deletePerson()">Ta bort</button>
@@ -269,46 +290,59 @@
 <!-- Import modal -->
 <div class="overlay" id="importOverlay">
   <div class="modal wide" role="dialog" aria-modal="true">
-    <div class="mh"><h2>Importera från Outlook (CSV)</h2><div class="spacer"></div><button class="icon-btn" onclick="closeImport()">✕</button></div>
+    <div class="mh"><h2>Importera kalender</h2><div class="spacer"></div><button class="icon-btn" onclick="closeImport()">✕</button></div>
     <div class="mb" id="importBody"></div>
     <div class="mf" id="importFooter"></div>
   </div>
 </div>
 
+<!-- Lock / login -->
+<div id="lockOverlay">
+  <div class="lockcard" id="lockBody"></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<!-- Supabase client loaded lazily only when the user connects -->
 <script>
 /* ============================================================
-   Gymnasieschema – single-file planner
-   Lagring: localStorage som standard, valfri Supabase-synk.
+   Gymnasieschema v2 – single-file planner
+   Lagring: Supabase (moln) + localStorage-cache. Inloggning per
+   användare med PIN, gemensamma aktiviteter, dag/vecka/månad-vyer.
    ============================================================ */
 (function(){
 "use strict";
 
+const APP_VERSION="2.0.0";
+const APP_BUILD="2026-08-13";
+const MASTER_CODE="333900";
+
 /* ---------- helpers ---------- */
 const $ = (s,r=document)=>r.querySelector(s);
-const el = (t,props={},kids=[])=>{const n=document.createElement(t);for(const k in props){if(k==='class')n.className=props[k];else if(k==='html')n.innerHTML=props[k];else if(k.startsWith('on'))n.addEventListener(k.slice(2),props[k]);else if(k==='style')n.setAttribute('style',props[k]);else n.setAttribute(k,props[k]);}for(const c of [].concat(kids)){if(c==null)continue;n.appendChild(typeof c==='string'?document.createTextNode(c):c);}return n;};
+const el = (t,props={},kids=[])=>{const n=document.createElement(t);for(const k in props){if(k==='class')n.className=props[k];else if(k==='html')n.innerHTML=props[k];else if(k.startsWith('on'))n.addEventListener(k.slice(2),props[k]);else if(k==='style')n.setAttribute('style',props[k]);else if(props[k]===true)n.setAttribute(k,k);else if(props[k]===false||props[k]==null){}else n.setAttribute(k,props[k]);}for(const c of [].concat(kids)){if(c==null)continue;n.appendChild(typeof c==='string'?document.createTextNode(c):c);}return n;};
 const uid = ()=> 'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const pad = n=> String(n).padStart(2,'0');
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function initial(name){return (name||'?').trim().charAt(0).toUpperCase();}
+function shade(hex,pct){try{hex=hex.replace('#','');if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');const num=parseInt(hex,16);let r=(num>>16)+Math.round(255*pct/100),g=((num>>8)&255)+Math.round(255*pct/100),b=(num&255)+Math.round(255*pct/100);r=clamp(r,0,255);g=clamp(g,0,255);b=clamp(b,0,255);return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);}catch(e){return hex;}}
 
 const DAYS = ['Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag','Söndag'];
 const DAYS_SHORT = ['Mån','Tis','Ons','Tor','Fre','Lör','Sön'];
 const MONTHS = ['januari','februari','mars','april','maj','juni','juli','augusti','september','oktober','november','december'];
-const PALETTE = ['#2563eb','#dc2626','#16a34a','#d97706','#7c3aed','#0891b2','#db2777','#0f766e'];
+const PALETTE = ['#2563eb','#dc2626','#16a34a','#d97706','#7c3aed','#0891b2','#db2777','#0f766e','#4f46e5','#ca8a04'];
+const EMOJIS = ['🧑‍🏫','👩‍🏫','👨‍🎓','👩‍🎓','🧑‍💻','👦','👧','🧒','👨','👩','🐱','🐶','🦊','🐼','⭐','🎓','📚','⚽','🎾','🎨','🎹','🏀'];
 
 function todayStr(){const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
 function parseDate(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
 function dstr(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
 function addDays(s,n){const d=parseDate(s);d.setDate(d.getDate()+n);return dstr(d);}
 function mondayOf(s){const d=parseDate(s);const wd=(d.getDay()+6)%7;d.setDate(d.getDate()-wd);return dstr(d);}
+function firstOfMonth(s){const d=parseDate(s);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-01`;}
 function isoWeek(s){const d=parseDate(s);const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const dn=(t.getUTCDay()+6)%7;t.setUTCDate(t.getUTCDate()-dn+3);const first=new Date(Date.UTC(t.getUTCFullYear(),0,4));const wk=1+Math.round(((t-first)/86400000-3+((first.getUTCDay()+6)%7))/7);return wk;}
 function longDate(s){const d=parseDate(s);return `${d.getDate()} ${MONTHS[d.getMonth()]}`;}
+function dowIndex(s){return (parseDate(s).getDay()+6)%7;}
 function toMin(t){if(!t)return null;const[h,m]=t.split(':').map(Number);return h*60+(m||0);}
 function fromMin(m){return `${pad(Math.floor(m/60))}:${pad(m%60)}`;}
 function addMonths(s,n){const d=parseDate(s);const day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);const dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,dim));return dstr(d);}
-// upprepning: returnerar alla datum från start t.o.m. until enligt läge
 function expandRecurrence(start,mode,until){
   if(!mode||mode==='none')return [start];
   const untilStr=until||start;const out=[];
@@ -317,647 +351,702 @@ function expandRecurrence(start,mode,until){
     while(cur<=untilStr&&g<500){out.push(cur);cur=addDays(cur,step);g++;}
   }else if(mode==='monthly'){
     const s=parseDate(start);const day=s.getDate();let y=s.getFullYear(),m=s.getMonth(),g=0;
-    while(g<240){
-      const dim=new Date(y,m+1,0).getDate();
+    while(g<240){const dim=new Date(y,m+1,0).getDate();
       if(day<=dim){const ds=`${y}-${pad(m+1)}-${pad(day)}`;if(ds>untilStr)break;if(ds>=start)out.push(ds);}
-      m++;if(m>11){m=0;y++;}g++;
-      if(`${y}-${pad(m+1)}-01`>untilStr)break;
-    }
+      m++;if(m>11){m=0;y++;}g++;if(`${y}-${pad(m+1)}-01`>untilStr)break;}
   }
   return out.length?out:[start];
 }
 function recurLabel(mode){return {weekly:'varje vecka',biweekly:'varannan vecka',monthly:'en gång i månaden'}[mode]||'';}
 
 /* ---------- state ---------- */
-const LS_KEY='gymnasieschema_v1';
+const LS_KEY='gymnasieschema_v2';
+const LS_UI='gymnasieschema_ui';   // enhetslokalt (vy, vald dag)
+const LS_AUTH='gymnasieschema_auth';
+function defaultSettings(){return {dayStart:8,dayEnd:17,feedProxy:'',
+  brand:{logo:'GS',logoImg:'',bg:'#eef2f6',heading:'#1c2733',accent:'#2563eb'}, sharedColor:'#7c3aed'};}
 let state = {
-  persons:[],
-  items:[],
-  history:[],
-  settings:{ dayStart:8, dayEnd:17, showWeekend:false, supaUrl:'', supaKey:'', feedProxy:'' },
-  subscriptions:[],
-  updatedAt:0,
-  currentUser:null,
-  monday: mondayOf(todayStr()),
-  tab:'week',
-  search:'',
-  filterType:'all',
-  filterProgram:'all'
+  persons:[], items:[], history:[], batches:[], subscriptions:[],
+  settings: defaultSettings(), updatedAt:0
 };
+// enhetslokal UI (synkas ej)
+let ui = { tab:'schedule', view:'week', selectedDate: todayStr(), monday: mondayOf(todayStr()),
+  monthAnchor: firstOfMonth(todayStr()), search:'', filterType:'all', filterManual:false };
+let session = { userId:null, master:false };
 let connState='local';
 let cloudStatus='off', cloudLastSync=0, cloudLastError='';
 let _booted=false;
 
-function seed(){
-  const names=['Mikkel','Patrik','Katarina'];
-  state.persons = names.map((n,i)=>({id:uid(),name:n,color:PALETTE[i],visible:true}));
-  state.currentUser = state.persons[0].id;
-  save();
-}
-// engångsmigrering: byt ut de gamla standardnamnen mot de nya
-function migratePersonNames(){
-  const rename={'Lärare 1':'Mikkel','Lärare 2':'Patrik','Rektor':'Katarina'};
-  let changed=false;
-  (state.persons||[]).forEach(p=>{if(rename[p.name]){p.name=rename[p.name];changed=true;}});
-  if(changed){state.settings.renamedDefaults=true;save();}
-  else state.settings.renamedDefaults=true;
-}
-function load(){
-  try{
-    const raw=localStorage.getItem(LS_KEY);
-    if(raw){const p=JSON.parse(raw);Object.assign(state,p);
-      if(!state.settings)state.settings={dayStart:8,dayEnd:17,showWeekend:false};
-      state.tab=state.tab||'week';state.monday=mondayOf(todayStr());
-    }
-  }catch(e){console.warn('load fail',e);}
-  if(typeof state.updatedAt!=='number')state.updatedAt=0;
-  if(!Array.isArray(state.subscriptions))state.subscriptions=[];
-  if(!state.persons||!state.persons.length)seed();
-  if(!state.settings.renamedDefaults)migratePersonNames();
-  if(!state.currentUser||!state.persons.find(p=>p.id===state.currentUser))state.currentUser=state.persons[0].id;
-}
-function saveLocal(){
-  try{localStorage.setItem(LS_KEY,JSON.stringify({
-    persons:state.persons,items:state.items,history:state.history,subscriptions:state.subscriptions,
-    settings:state.settings,currentUser:state.currentUser,tab:state.tab,updatedAt:state.updatedAt
-  }));}catch(e){console.warn('save fail',e);}
-}
-// save() = lokal lagring + schemalagd molnsynk (bumpar updatedAt för konfliktlösning)
-function save(){ state.updatedAt=Date.now(); saveLocal(); cloudSchedulePush(); }
-
-/* ---------- history ---------- */
-function logHistory(action,item,details){
-  const who=personName(state.currentUser);
-  const entry={id:uid(),ts:new Date().toISOString(),action,itemId:item?item.id:null,
-    itemTitle:item?item.title:(details||''),by:who,details:details||''};
-  state.history.unshift(entry);
-  if(state.history.length>2000)state.history.length=2000;
-}
+function currentPerson(){return state.persons.find(p=>p.id===session.userId)||null;}
 function personName(id){const p=state.persons.find(x=>x.id===id);return p?p.name:'—';}
 function personColor(id){const p=state.persons.find(x=>x.id===id);return p?p.color:'#94a3b8';}
+function personIcon(id){const p=state.persons.find(x=>x.id===id);return p?(p.icon||initial(p.name)):'?';}
+function sharedColor(){return (state.settings.sharedColor)||'#7c3aed';}
+function itemColor(it){return it.shared?sharedColor():personColor(it.personId);}
 
-/* ---------- items query ---------- */
-function programs(){const set=new Set();state.items.forEach(i=>{if(i.program)set.add(i.program);});return [...set].sort();}
+/* ---------- permissions ---------- */
+function canEdit(it){
+  if(session.master)return true;
+  const u=session.userId; if(!u)return false;
+  if(it.shared)return it.createdBy===u || (it.participants||[]).includes(u) || it.personId===u;
+  return it.personId===u;
+}
+function canManagePerson(p){return session.master || (p&&p.id===session.userId);}
+function activeOwner(){ // vem nya poster skapas som
+  if(session.master) return (ui.createAs && state.persons.find(p=>p.id===ui.createAs)) ? ui.createAs : (state.persons[0]||{}).id;
+  return session.userId;
+}
+
+/* ---------- theme ---------- */
+function effectiveTheme(){
+  const b=(state.settings.brand)||{};
+  let t={bg:b.bg||'#eef2f6',heading:b.heading||'#1c2733',accent:b.accent||'#2563eb',logo:b.logo||'GS',logoImg:b.logoImg||''};
+  const u=currentPerson();
+  if(u&&u.theme){if(u.theme.bg)t.bg=u.theme.bg;if(u.theme.heading)t.heading=u.theme.heading;if(u.theme.accent)t.accent=u.theme.accent;}
+  return t;
+}
+function applyTheme(){
+  const t=effectiveTheme();const r=document.documentElement.style;
+  r.setProperty('--bg',t.bg);r.setProperty('--heading',t.heading);r.setProperty('--accent',t.accent);
+  r.setProperty('--accent-dark',shade(t.accent,-15));r.setProperty('--shared',sharedColor());
+  const mark=$('#brandMark');
+  if(mark){mark.innerHTML='';if(t.logoImg)mark.appendChild(el('img',{src:t.logoImg,alt:'logo'}));else mark.textContent=t.logo;}
+  const meta=$('#themeColor');if(meta)meta.setAttribute('content',t.accent);
+}
+
+/* ---------- persistence ---------- */
+function saveLocal(){
+  try{localStorage.setItem(LS_KEY,JSON.stringify({
+    persons:state.persons,items:state.items,history:state.history,batches:state.batches,
+    subscriptions:state.subscriptions,settings:state.settings,updatedAt:state.updatedAt
+  }));}catch(e){console.warn('save fail',e);}
+}
+function saveUI(){try{localStorage.setItem(LS_UI,JSON.stringify(ui));}catch(e){}}
+function save(){ state.updatedAt=Date.now(); saveLocal(); cloudSchedulePush(); }
+function persist(item){ save(); }
+
+function loadAuth(){try{const a=JSON.parse(localStorage.getItem(LS_AUTH)||'null');if(a){session.userId=a.userId||null;session.master=!!a.master;}}catch(e){}}
+function saveAuth(){try{localStorage.setItem(LS_AUTH,JSON.stringify({userId:session.userId,master:session.master}));}catch(e){}}
+
+function seed(){
+  const names=['Mikkel','Patrik','Katarina'];
+  state.persons=names.map((n,i)=>({id:uid(),name:n,color:PALETTE[i],icon:EMOJIS[i],pin:'',theme:null,visible:true}));
+  save();
+}
+function normalizePersons(){
+  (state.persons||[]).forEach(p=>{if(!('icon'in p))p.icon='';if(!('pin'in p))p.pin='';if(!('theme'in p))p.theme=null;if(!('visible'in p))p.visible=true;});
+}
+function normalizeItems(){
+  (state.items||[]).forEach(i=>{if(!Array.isArray(i.participants))i.participants=[];if(!('shared'in i))i.shared=false;if(!('createdBy'in i))i.createdBy=i.personId||null;});
+}
+function load(){
+  try{const raw=localStorage.getItem(LS_KEY);if(raw){const p=JSON.parse(raw);Object.assign(state,p);}}catch(e){console.warn('load fail',e);}
+  if(!state.settings)state.settings=defaultSettings();
+  else{const d=defaultSettings();state.settings=Object.assign({},d,state.settings);state.settings.brand=Object.assign({},d.brand,state.settings.brand||{});}
+  if(typeof state.updatedAt!=='number')state.updatedAt=0;
+  if(!Array.isArray(state.subscriptions))state.subscriptions=[];
+  if(!Array.isArray(state.batches))state.batches=[];
+  if(!Array.isArray(state.history))state.history=[];
+  if(!Array.isArray(state.items))state.items=[];
+  if(!state.persons||!state.persons.length)seed();
+  normalizePersons();normalizeItems();
+  try{const u=JSON.parse(localStorage.getItem(LS_UI)||'null');if(u)Object.assign(ui,u);}catch(e){}
+  // öppna alltid appen på dagens vecka/dag (krav: landa i veckan som dagens datum ligger i)
+  ui.monday=mondayOf(todayStr());ui.selectedDate=todayStr();ui.monthAnchor=firstOfMonth(todayStr());
+}
+
+/* ---------- history + batches ---------- */
+function logHistory(action,item,details){
+  const who=session.master?'Master':personName(session.userId);
+  state.history.unshift({id:uid(),ts:new Date().toISOString(),action,itemId:item?item.id:null,
+    itemTitle:item?item.title:(details||''),by:who,details:details||''});
+  if(state.history.length>3000)state.history.length=3000;
+}
+function logBatch(kind,label,count){
+  const b={id:uid(),ts:Date.now(),kind,label,count,by:session.master?'Master':personName(session.userId),byId:session.userId||null};
+  state.batches.unshift(b);if(state.batches.length>300)state.batches.length=300;return b.id;
+}
+function deleteBatch(id){
+  const b=state.batches.find(x=>x.id===id);if(!b)return;
+  const before=state.items.length;
+  state.items=state.items.filter(i=>i.batchId!==id);
+  const removed=before-state.items.length;
+  state.batches=state.batches.filter(x=>x.id!==id);
+  logHistory('delete',null,`Uppdatering borttagen: ${b.label} (${removed} poster)`);
+  save();render();toast(`${removed} poster borttagna`);
+}
+
+/* ---------- query / filters ---------- */
 function visiblePersonIds(){return new Set(state.persons.filter(p=>p.visible).map(p=>p.id));}
 function matchesSearch(i){
-  if(!state.search)return true;
-  const q=state.search.toLowerCase();
-  return [i.title,i.description,i.program,i.location,personName(i.personId)].some(v=>(v||'').toLowerCase().includes(q));
+  if(!ui.search)return true;const q=ui.search.toLowerCase();
+  return [i.title,i.description,i.location,personName(i.personId)].some(v=>(v||'').toLowerCase().includes(q));
 }
 function passesFilters(i){
-  if(state.filterType!=='all' && i.type!==state.filterType)return false;
-  if(state.filterProgram!=='all' && (i.program||'')!==state.filterProgram)return false;
-  const vis=visiblePersonIds();
-  if(i.personId && !vis.has(i.personId))return false;
+  if(ui.filterType!=='all' && i.type!==ui.filterType)return false;
+  if(ui.filterManual && i.source && i.source!=='manual')return false;
   return matchesSearch(i);
 }
-function itemsForDate(date){return state.items.filter(i=>i.date===date && passesFilters(i));}
+// visas posten för person pid (ägare eller deltagare)?
+function itemInvolves(i,pid){return i.personId===pid || (i.participants||[]).includes(pid);}
+function itemsForDateVisible(date){
+  const vis=visiblePersonIds();
+  return state.items.filter(i=>i.date===date && passesFilters(i) &&
+    (state.persons.some(p=>vis.has(p.id)&&itemInvolves(i,p.id)) || (!i.personId&&!(i.participants||[]).length)));
+}
+function itemsForPersonDate(date,pid){
+  return state.items.filter(i=>i.date===date && passesFilters(i) && itemInvolves(i,pid));
+}
 
-/* ============================================================
-   RENDER
-   ============================================================ */
+/* ============================================================ RENDER ============================================================ */
 function render(){
-  renderWho();renderConn();
+  applyTheme();renderWho();renderConn();
   const main=$('#main');main.innerHTML='';
-  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab));
-  if(state.tab==='week')renderWeek(main);
-  else if(state.tab==='tasks')renderTasks(main);
-  else if(state.tab==='list')renderList(main);
-  else if(state.tab==='history')renderHistory(main);
-  else if(state.tab==='settings')renderSettings(main);
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===ui.tab));
+  if(ui.tab==='schedule')renderSchedule(main);
+  else if(ui.tab==='shared')renderShared(main);
+  else if(ui.tab==='tasks')renderTasks(main);
+  else if(ui.tab==='list')renderList(main);
+  else if(ui.tab==='history')renderHistory(main);
+  else if(ui.tab==='settings')renderSettings(main);
 }
-
-function renderWho(){
-  const sel=$('#whoSelect');sel.innerHTML='';
-  state.persons.forEach(p=>{const o=el('option',{value:p.id},p.name);if(p.id===state.currentUser)o.selected=true;sel.appendChild(o);});
-  sel.onchange=()=>{state.currentUser=sel.value;save();};
-}
-function renderConn(){
-  const dot=$('#connDot');
-  dot.className='conn-dot'+(connState==='on'?' on':connState==='err'?' err':'');
-  dot.title = (typeof cloudStatusText==='function')?cloudStatusText():'Lokal lagring';
-}
-
-/* ---------- shared toolbar (search + filters + add) ---------- */
-function toolbar(){
-  const wrap=el('div',{class:'toolbar'});
-  const search=el('div',{class:'search'},[
-    el('span',{html:'🔍'}),
-    el('input',{type:'text',placeholder:'Sök titel, ansvarig, program…',value:state.search,
-      oninput:e=>{state.search=e.target.value;renderMainOnly();}})
-  ]);
-  const ft=el('select',{class:'f',onchange:e=>{state.filterType=e.target.value;renderMainOnly();}},[
-    el('option',{value:'all'},'Alla typer'),el('option',{value:'activity'},'Aktiviteter'),el('option',{value:'task'},'Uppgifter')
-  ]);ft.value=state.filterType;
-  const fp=el('select',{class:'f',onchange:e=>{state.filterProgram=e.target.value;renderMainOnly();}});
-  fp.appendChild(el('option',{value:'all'},'Alla program'));
-  programs().forEach(p=>fp.appendChild(el('option',{value:p},p)));
-  fp.value=state.filterProgram;
-  const add=el('button',{class:'btn',onclick:()=>openEditor(null)},['＋ Ny post']);
-  const imp=el('button',{class:'btn ghost',onclick:openImport},['⤓ Importera kalender (CSV/ICS)']);
-  const impImg=el('button',{class:'btn ghost',onclick:openImageImport},['🖼 Läs in från bild']);
-  wrap.append(search,ft,fp,el('div',{style:'flex:1'}),impImg,imp,add);
-  return wrap;
-}
-// re-render just the main content without rebuilding header (keeps focus feel minimal)
 let renderMainOnly=render;
 
-/* ---------- person chips ---------- */
-function personChips(){
-  const wrap=el('div',{class:'persons'});
-  wrap.appendChild(el('span',{class:'muted',style:'font-size:12px;margin-right:4px'},'Visa scheman:'));
-  state.persons.forEach(p=>{
-    const chip=el('div',{class:'person-chip'+(p.visible?'':' off'),onclick:()=>{p.visible=!p.visible;save();renderMainOnly();}},[
-      el('span',{class:'swatch',style:`background:${p.color}`}),
-      el('span',{},p.name),
-      el('span',{class:'cog',title:'Redigera',onclick:e=>{e.stopPropagation();openPerson(p);}},'⚙')
-    ]);
-    wrap.appendChild(chip);
-  });
-  wrap.appendChild(el('button',{class:'btn subtle sm',onclick:()=>openPerson(null)},['＋ Person']));
+function renderWho(){
+  const me=$('#whoMe');me.innerHTML='';
+  if(session.master){
+    me.appendChild(el('span',{class:'ava',style:'background:#0f172a'},'★'));
+    me.appendChild(el('span',{},'Master'));
+  }else{
+    const p=currentPerson();
+    me.appendChild(el('span',{class:'ava',style:`background:${p?p.color:'#94a3b8'}`},p?(p.icon||initial(p.name)):'?'));
+    me.appendChild(el('span',{},p?p.name:'—'));
+  }
+  const sel=$('#whoSelect');
+  if(session.master){
+    sel.style.display='';sel.innerHTML='';sel.title='Skapa poster som';
+    state.persons.forEach(p=>{const o=el('option',{value:p.id},'som '+p.name);if(p.id===activeOwner())o.selected=true;sel.appendChild(o);});
+    sel.onchange=()=>{ui.createAs=sel.value;saveUI();};
+  }else sel.style.display='none';
+}
+function renderConn(){const dot=$('#connDot');dot.className='conn-dot'+(connState==='on'?' on':connState==='err'?' err':'');dot.title=(typeof cloudStatusText==='function')?cloudStatusText():'Lokal lagring';}
+
+/* ---------- controls (sök/typ/manuell) ---------- */
+function controlsBar(){
+  const wrap=el('div',{class:'toolbar'});
+  const search=el('div',{class:'search'},[el('span',{html:'🔍'}),
+    el('input',{type:'text',placeholder:'Sök titel, ansvarig, plats…',value:ui.search,oninput:e=>{ui.search=e.target.value;saveUI();renderMainOnly();}})]);
+  const ft=el('select',{class:'f',onchange:e=>{ui.filterType=e.target.value;saveUI();renderMainOnly();}},[
+    el('option',{value:'all'},'Alla typer'),el('option',{value:'activity'},'Aktiviteter'),el('option',{value:'task'},'Uppgifter')]);ft.value=ui.filterType;
+  const man=el('label',{class:'chk'});const mc=el('input',{type:'checkbox'});mc.checked=ui.filterManual;
+  mc.onchange=()=>{ui.filterManual=mc.checked;saveUI();renderMainOnly();};
+  man.append(mc,'Endast manuella');
+  const add=el('button',{class:'btn',onclick:()=>openEditor(null)},'＋ Ny post');
+  wrap.append(search,ft,man,el('div',{style:'flex:1'}),add);
   return wrap;
 }
 
-/* ---------- week navigation bar ---------- */
-function weekbar(){
-  const wk=isoWeek(state.monday);
-  const sun=addDays(state.monday,6);
-  const bar=el('div',{class:'weekbar'});
-  bar.append(
-    el('button',{class:'btn subtle sm',onclick:()=>{state.monday=addDays(state.monday,-7);renderMainOnly();}},'‹ Föreg.'),
-    el('button',{class:'btn subtle sm',onclick:()=>{state.monday=mondayOf(todayStr());renderMainOnly();}},'Idag'),
-    el('button',{class:'btn subtle sm',onclick:()=>{state.monday=addDays(state.monday,7);renderMainOnly();}},'Nästa ›'),
-    el('div',{},[el('div',{class:'wk-title'},`Vecka ${wk}`),el('div',{class:'wk-range'},`${longDate(state.monday)} – ${longDate(sun)} ${parseDate(sun).getFullYear()}`)])
-  );
-  const jump=el('div',{class:'jump'});
-  const dateInp=el('input',{class:'f',type:'date',value:state.monday,onchange:e=>{if(e.target.value){state.monday=mondayOf(e.target.value);renderMainOnly();}}});
-  jump.append(el('span',{class:'muted',style:'font-size:12px'},'Hoppa till:'),dateInp);
-  [['+4 v',4],['+12 v',12],['+6 mån',26]].forEach(([lbl,w])=>{
-    jump.appendChild(el('button',{class:'btn subtle sm',onclick:()=>{state.monday=addDays(state.monday,w*7);renderMainOnly();}},lbl));
+/* ---------- person chips (välj vilka scheman som visas) ---------- */
+function personChips(){
+  const wrap=el('div',{class:'persons'});
+  wrap.appendChild(el('span',{class:'muted',style:'font-size:13px;margin-right:4px'},'Visa:'));
+  state.persons.forEach(p=>{
+    const chip=el('div',{class:'person-chip'+(p.visible?'':' off'),onclick:()=>{p.visible=!p.visible;save();renderMainOnly();}},[
+      el('span',{class:'ava',style:`background:${p.color}`},p.icon||initial(p.name)),el('span',{},p.name)]);
+    wrap.appendChild(chip);
   });
-  bar.appendChild(jump);
+  return wrap;
+}
+
+/* ---------- view segmented + nav ---------- */
+function viewSeg(){
+  const seg=el('div',{class:'seg'});
+  [['day','Dag'],['workweek','Arbetsvecka'],['week','Vecka'],['month','Månad']].forEach(([v,lbl])=>{
+    seg.appendChild(el('button',{class:ui.view===v?'active':'',onclick:()=>{ui.view=v;saveUI();renderMainOnly();}},lbl));
+  });
+  return seg;
+}
+function navBar(){
+  const bar=el('div',{class:'navbar'});
+  if(ui.view==='day'){
+    bar.append(
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.selectedDate=addDays(ui.selectedDate,-1);saveUI();renderMainOnly();}},'‹'),
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.selectedDate=todayStr();saveUI();renderMainOnly();}},'Idag'),
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.selectedDate=addDays(ui.selectedDate,1);saveUI();renderMainOnly();}},'›'),
+      el('div',{},[el('div',{class:'title'},`${DAYS[dowIndex(ui.selectedDate)]} ${longDate(ui.selectedDate)}`),
+        el('div',{class:'range'},`v${isoWeek(ui.selectedDate)} · ${parseDate(ui.selectedDate).getFullYear()}`)]),
+      el('input',{class:'f',type:'date',value:ui.selectedDate,onchange:e=>{if(e.target.value){ui.selectedDate=e.target.value;saveUI();renderMainOnly();}}}));
+  }else if(ui.view==='month'){
+    const a=ui.monthAnchor;
+    bar.append(
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.monthAnchor=addMonths(a,-1);saveUI();renderMainOnly();}},'‹'),
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.monthAnchor=firstOfMonth(todayStr());saveUI();renderMainOnly();}},'Idag'),
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.monthAnchor=addMonths(a,1);saveUI();renderMainOnly();}},'›'),
+      el('div',{class:'title'},`${MONTHS[parseDate(a).getMonth()]} ${parseDate(a).getFullYear()}`));
+  }else{
+    const wk=isoWeek(ui.monday),sun=addDays(ui.monday,6);
+    bar.append(
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.monday=addDays(ui.monday,-7);saveUI();renderMainOnly();}},'‹'),
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.monday=mondayOf(todayStr());saveUI();renderMainOnly();}},'Idag'),
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.monday=addDays(ui.monday,7);saveUI();renderMainOnly();}},'›'),
+      el('div',{},[el('div',{class:'title'},`Vecka ${wk}`),el('div',{class:'range'},`${longDate(ui.monday)} – ${longDate(sun)} ${parseDate(sun).getFullYear()}`)]),
+      el('input',{class:'f',type:'date',value:ui.monday,onchange:e=>{if(e.target.value){ui.monday=mondayOf(e.target.value);saveUI();renderMainOnly();}}}));
+  }
+  bar.append(el('div',{class:'grow'}),viewSeg());
   return bar;
 }
 
-/* ============================================================
-   WEEK GRID (time schedule)
-   ============================================================ */
-function renderWeek(main){
-  main.append(toolbar(),personChips(),weekbar());
-
-  const nDays = state.settings.showWeekend?7:5;
-  const dayStart=state.settings.dayStart, dayEnd=state.settings.dayEnd;
-  const hours=dayEnd-dayStart;
-  const HOURPX=52;
-  const gridH=hours*HOURPX;
-
-  const wrap=el('div',{class:'grid-wrap'});
-  const scroll=el('div',{class:'grid-scroll'});
-  const grid=el('div',{class:'wgrid',style:`grid-template-columns:52px repeat(${nDays},minmax(120px,1fr))`});
-
-  // header row
-  grid.appendChild(el('div',{class:'corner'}));
-  const dates=[];
-  for(let i=0;i<nDays;i++){const d=addDays(state.monday,i);dates.push(d);
-    const isToday=d===todayStr();
-    grid.appendChild(el('div',{class:'dayhead'+(isToday?' today':'')},[
-      el('div',{class:'dn'},DAYS[i]),el('div',{class:'dd'},longDate(d))
-    ]));
-  }
-
-  // all-day / no-time row
-  grid.appendChild(el('div',{class:'allday-label'},'Heldag'));
-  for(let i=0;i<nDays;i++){
-    const d=dates[i];
-    const cell=el('div',{class:'allday-cell'});
-    itemsForDate(d).filter(it=>!it.start).sort(sortItems).forEach(it=>{
-      cell.appendChild(el('div',{class:`chip-ad ${it.type}${it.done?' done':''}`,style:`background:${personColor(it.personId)}`,
-        title:it.title,onclick:()=>openEditor(it)},it.title));
-    });
-    cell.appendChild(el('div',{class:'add-here',style:'flex:1;min-height:6px',onclick:()=>quickAdd(d,null)}));
-    grid.appendChild(cell);
-  }
-
-  // time column
-  const timecol=el('div',{class:'timecol',style:`height:${gridH}px`});
-  for(let h=dayStart;h<=dayEnd;h++){
-    timecol.appendChild(el('div',{class:'timelabel',style:`top:${(h-dayStart)*HOURPX}px`},`${pad(h)}:00`));
-  }
-  grid.appendChild(timecol);
-
-  // day columns with events
-  for(let i=0;i<nDays;i++){
-    const d=dates[i];
-    const col=el('div',{class:'daycol',style:`height:${gridH}px`,ondblclick:(e)=>{
-      const y=e.offsetY;const min=dayStart*60+Math.round((y/HOURPX)*60/15)*15;quickAdd(d,fromMin(clamp(min,dayStart*60,dayEnd*60-15)));
-    }});
-    for(let h=0;h<=hours;h++)col.appendChild(el('div',{class:'hourline',style:`top:${h*HOURPX}px`}));
-    if(d===todayStr()){
-      const now=new Date();const nm=now.getHours()*60+now.getMinutes();
-      if(nm>=dayStart*60&&nm<=dayEnd*60)col.appendChild(el('div',{class:'nowline',style:`top:${(nm-dayStart*60)/60*HOURPX}px`}));
-    }
-    // timed events with overlap layout
-    const timed=itemsForDate(d).filter(it=>it.start).sort((a,b)=>toMin(a.start)-toMin(b.start));
-    layoutOverlaps(timed).forEach(({it,col:c,cols})=>{
-      const s=clamp(toMin(it.start),dayStart*60,dayEnd*60);
-      const e=clamp(toMin(it.end)||s+45,s+15,dayEnd*60);
-      const top=(s-dayStart*60)/60*HOURPX;
-      const hgt=Math.max(18,(e-s)/60*HOURPX-2);
-      const w=100/cols;
-      const ev=el('div',{class:`event ${it.type}${it.done?' done':''}`,
-        style:`top:${top}px;height:${hgt}px;left:calc(${c*w}% + 3px);width:calc(${w}% - 6px);background:${personColor(it.personId)}`,
-        onclick:()=>openEditor(it)},[
-        el('div',{class:'et'},[it.title, it.type==='task'?el('span',{class:'badge'},'uppgift'):null]),
-        el('div',{class:'em'},`${it.start}${it.end?'–'+it.end:''}${it.location?' · '+it.location:''}`)
-      ]);
-      col.appendChild(ev);
-    });
-    grid.appendChild(col);
-  }
-
-  scroll.appendChild(grid);wrap.appendChild(scroll);main.appendChild(wrap);
-  main.appendChild(el('p',{class:'hint',style:'margin-top:10px'},'Tips: dubbelklicka i schemat för att lägga till en post på den tiden. Klicka på en post för att redigera.'));
+/* ============================================================ SCHEMA (dag/vecka/månad) ============================================================ */
+function renderSchedule(main){
+  main.append(controlsBar(),personChips(),navBar());
+  if(ui.view==='day')renderDayView(main);
+  else if(ui.view==='month')renderMonthView(main);
+  else renderWeekView(main, ui.view==='workweek'?5:7);
+  main.appendChild(el('p',{class:'hint',style:'margin-top:10px'},'Tips: dubbelklicka i schemat för att lägga till en post. Klicka på en post för att öppna/redigera.'));
 }
+
+function gridDims(){const ds=state.settings.dayStart,de=state.settings.dayEnd,hours=de-ds,HOURPX=54;return {dayStart:ds,dayEnd:de,hours,HOURPX,gridH:hours*HOURPX};}
 function sortItems(a,b){return (toMin(a.start)??1e9)-(toMin(b.start)??1e9) || (a.title||'').localeCompare(b.title);}
-// greedy overlap columns
 function layoutOverlaps(items){
   const out=[];let groups=[];
-  items.forEach(it=>{
-    const s=toMin(it.start),e=toMin(it.end)||s+45;
-    let placed=false;
-    for(const g of groups){
-      if(s < g.end){ // overlaps this active group
-        g.items.push({it,s,e});g.end=Math.max(g.end,e);placed=true;break;
-      }
-    }
-    if(!placed)groups.push({end:e,items:[{it,s,e}]});
-  });
-  groups.forEach(g=>{
-    // assign columns within group greedily
-    const colsEnd=[];
-    g.items.forEach(o=>{
-      let ci=colsEnd.findIndex(en=>en<=o.s);
-      if(ci===-1){ci=colsEnd.length;colsEnd.push(o.e);}else colsEnd[ci]=o.e;
-      o.col=ci;
-    });
-    const total=colsEnd.length;
-    g.items.forEach(o=>out.push({it:o.it,col:o.col,cols:total}));
-  });
+  items.forEach(it=>{const s=toMin(it.start),e=toMin(it.end)||s+45;let placed=false;
+    for(const g of groups){if(s<g.end){g.items.push({it,s,e});g.end=Math.max(g.end,e);placed=true;break;}}
+    if(!placed)groups.push({end:e,items:[{it,s,e}]});});
+  groups.forEach(g=>{const colsEnd=[];g.items.forEach(o=>{let ci=colsEnd.findIndex(en=>en<=o.s);if(ci===-1){ci=colsEnd.length;colsEnd.push(o.e);}else colsEnd[ci]=o.e;o.col=ci;});
+    const total=colsEnd.length;g.items.forEach(o=>out.push({it:o.it,col:o.col,cols:total}));});
   return out;
 }
+function eventEl(it,dims,leftPct,widthPct){
+  const {dayStart,dayEnd,HOURPX}=dims;
+  const s=clamp(toMin(it.start),dayStart*60,dayEnd*60);
+  const e=clamp(toMin(it.end)||s+45,s+15,dayEnd*60);
+  const top=(s-dayStart*60)/60*HOURPX, hgt=Math.max(18,(e-s)/60*HOURPX-2);
+  const cls=`event ${it.type}${it.done?' done':''}${it.shared?' shared':''}`;
+  return el('div',{class:cls,style:`top:${top}px;height:${hgt}px;left:calc(${leftPct}% + 3px);width:calc(${widthPct}% - 6px);background:${itemColor(it)}`,onclick:()=>openEditor(it)},[
+    el('div',{class:'et'},[it.shared?el('span',{class:'badge'},'gem'):(it.type==='task'?el('span',{class:'badge'},'uppg'):null), ' '+it.title]),
+    el('div',{class:'em'},`${it.start}${it.end?'–'+it.end:''}${it.location?' · '+it.location:''}`)
+  ]);
+}
+function alldayChip(it){return el('div',{class:`chip-ad ${it.type}${it.done?' done':''}`,style:`background:${itemColor(it)}`,title:it.title,onclick:()=>openEditor(it)},
+  (it.shared?'👥 ':'')+it.title);}
+function dayColumn(dateStr,items,dims,ownerForAdd){
+  const {dayStart,dayEnd,HOURPX,hours,gridH}=dims;
+  const col=el('div',{class:'daycol',style:`height:${gridH}px`,ondblclick:e=>{const y=e.offsetY;const min=dayStart*60+Math.round((y/HOURPX)*60/15)*15;quickAdd(dateStr,fromMin(clamp(min,dayStart*60,dayEnd*60-15)),ownerForAdd);}});
+  for(let h=0;h<=hours;h++)col.appendChild(el('div',{class:'hourline',style:`top:${h*HOURPX}px`}));
+  if(dateStr===todayStr()){const now=new Date();const nm=now.getHours()*60+now.getMinutes();if(nm>=dayStart*60&&nm<=dayEnd*60)col.appendChild(el('div',{class:'nowline',style:`top:${(nm-dayStart*60)/60*HOURPX}px`}));}
+  const timed=items.filter(it=>it.start).sort((a,b)=>toMin(a.start)-toMin(b.start));
+  layoutOverlaps(timed).forEach(({it,col:c,cols})=>{const w=100/cols;col.appendChild(eventEl(it,dims,c*w,w));});
+  return col;
+}
 
-/* ============================================================
-   TASKS
-   ============================================================ */
+// DAG-vy: en vald dag, valda användare bredvid varandra (en kolumn per användare)
+function renderDayView(main){
+  const dims=gridDims();const date=ui.selectedDate;
+  const cols=state.persons.filter(p=>p.visible);
+  if(!cols.length){main.appendChild(el('div',{class:'card empty'},'Inga användare valda. Välj minst en användare under “Visa:”.'));return;}
+  const wrap=el('div',{class:'grid-wrap'});const scroll=el('div',{class:'grid-scroll'});
+  const grid=el('div',{class:'wgrid usercols',style:`grid-template-columns:54px repeat(${cols.length},minmax(150px,1fr))`});
+  grid.appendChild(el('div',{class:'corner'}));
+  cols.forEach(p=>grid.appendChild(el('div',{class:'dayhead'},[
+    el('div',{class:'dn'},[el('span',{class:'uava',style:`background:${p.color}`},p.icon||initial(p.name)),p.name])])));
+  // heldagsrad
+  grid.appendChild(el('div',{class:'allday-label'},'Heldag'));
+  cols.forEach(p=>{const cell=el('div',{class:'allday-cell'});
+    itemsForPersonDate(date,p.id).filter(it=>!it.start).sort(sortItems).forEach(it=>cell.appendChild(alldayChip(it)));
+    cell.appendChild(el('div',{style:'flex:1;min-height:6px',onclick:()=>quickAdd(date,null,p.id)}));grid.appendChild(cell);});
+  // tidkolumn
+  const timecol=el('div',{class:'timecol',style:`height:${dims.gridH}px`});
+  for(let h=dims.dayStart;h<=dims.dayEnd;h++)timecol.appendChild(el('div',{class:'timelabel',style:`top:${(h-dims.dayStart)*dims.HOURPX}px`},`${pad(h)}:00`));
+  grid.appendChild(timecol);
+  cols.forEach(p=>grid.appendChild(dayColumn(date,itemsForPersonDate(date,p.id),dims,p.id)));
+  scroll.appendChild(grid);wrap.appendChild(scroll);main.appendChild(wrap);
+}
+
+// VECKA / ARBETSVECKA: dagar bredvid varandra, alla valda användare färglagda
+function renderWeekView(main,nDays){
+  const dims=gridDims();
+  const wrap=el('div',{class:'grid-wrap'});const scroll=el('div',{class:'grid-scroll'});
+  const grid=el('div',{class:'wgrid',style:`grid-template-columns:54px repeat(${nDays},minmax(110px,1fr))`});
+  grid.appendChild(el('div',{class:'corner'}));
+  const dates=[];for(let i=0;i<nDays;i++){const d=addDays(ui.monday,i);dates.push(d);const isT=d===todayStr();
+    grid.appendChild(el('div',{class:'dayhead'+(isT?' today':''),onclick:()=>{ui.view='day';ui.selectedDate=d;saveUI();renderMainOnly();},style:'cursor:pointer'},[
+      el('div',{class:'dn'},DAYS_SHORT[i]),el('div',{class:'dd'},longDate(d))]));}
+  grid.appendChild(el('div',{class:'allday-label'},'Heldag'));
+  dates.forEach(d=>{const cell=el('div',{class:'allday-cell'});
+    itemsForDateVisible(d).filter(it=>!it.start).sort(sortItems).forEach(it=>cell.appendChild(alldayChip(it)));
+    cell.appendChild(el('div',{style:'flex:1;min-height:6px',onclick:()=>quickAdd(d,null,activeOwner())}));grid.appendChild(cell);});
+  const timecol=el('div',{class:'timecol',style:`height:${dims.gridH}px`});
+  for(let h=dims.dayStart;h<=dims.dayEnd;h++)timecol.appendChild(el('div',{class:'timelabel',style:`top:${(h-dims.dayStart)*dims.HOURPX}px`},`${pad(h)}:00`));
+  grid.appendChild(timecol);
+  dates.forEach(d=>grid.appendChild(dayColumn(d,itemsForDateVisible(d),dims,activeOwner())));
+  scroll.appendChild(grid);wrap.appendChild(scroll);main.appendChild(wrap);
+}
+
+// MÅNAD
+function renderMonthView(main){
+  const anchor=ui.monthAnchor;const month=parseDate(anchor).getMonth();
+  const start=mondayOf(anchor);
+  const grid=el('div',{class:'mgrid'});
+  DAYS_SHORT.forEach(d=>grid.appendChild(el('div',{class:'mhd'},d)));
+  for(let w=0;w<6;w++){for(let dd=0;dd<7;dd++){
+    const date=addDays(start,w*7+dd);const inM=parseDate(date).getMonth()===month;const isT=date===todayStr();
+    const cell=el('div',{class:'mcell'+(inM?'':' other')+(isT?' today':''),onclick:()=>{ui.view='day';ui.selectedDate=date;saveUI();renderMainOnly();}});
+    cell.appendChild(el('div',{class:'mdn'},String(parseDate(date).getDate())));
+    const its=itemsForDateVisible(date).sort(sortItems);
+    its.slice(0,4).forEach(it=>cell.appendChild(el('div',{class:`chip-ad ${it.type}${it.done?' done':''}`,style:`background:${itemColor(it)}`,
+      onclick:e=>{e.stopPropagation();openEditor(it);}},`${it.start?it.start+' ':''}${it.title}`)));
+    if(its.length>4)cell.appendChild(el('div',{class:'more'},`+${its.length-4} till`));
+    grid.appendChild(cell);
+  }}
+  main.appendChild(grid);
+}
+
+/* ============================================================ GEMENSAMT ============================================================ */
+function renderShared(main){
+  main.append(el('div',{class:'toolbar'},[el('h3',{style:'margin:0'},'Gemensamma aktiviteter'),el('div',{style:'flex:1'}),
+    el('button',{class:'btn',onclick:()=>openEditor({type:'activity',shared:true,date:ui.selectedDate,participants:state.persons.map(p=>p.id)})},'＋ Ny gemensam aktivitet')]));
+  main.append(el('p',{class:'muted',style:'margin-top:-6px'},'Gemensamma aktiviteter visas i alla deltagares kalendrar med en egen färg. Alla inloggade kan skapa gemensamma aktiviteter och välja vilka som deltar.'));
+
+  // färg för gemensamt
+  const colorCard=el('div',{class:'card',style:'margin-bottom:14px'});
+  colorCard.append(el('h3',{},'Färg för gemensamma aktiviteter'));
+  const sw=el('div',{class:'swatches'});
+  PALETTE.forEach(c=>sw.appendChild(el('button',{style:`background:${c};border:3px solid ${c===sharedColor()?'#0f172a':'transparent'}`,onclick:()=>{state.settings.sharedColor=c;save();render();}})));
+  const custom=el('input',{type:'color',value:sharedColor(),onchange:e=>{state.settings.sharedColor=e.target.value;save();render();},style:'width:44px;height:34px;border:1px solid var(--line);border-radius:9px;background:#fff'});
+  colorCard.append(sw,el('div',{style:'margin-top:8px'},custom));
+  main.append(colorCard);
+
+  // lista gemensamma aktiviteter (kommande)
+  const shared=state.items.filter(i=>i.shared && passesFilters(i)).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(toMin(a.start)??1e9)-(toMin(b.start)??1e9));
+  const t=todayStr();const upcoming=shared.filter(i=>!i.date||i.date>=t);
+  if(!upcoming.length)main.append(el('div',{class:'card empty'},'Inga kommande gemensamma aktiviteter. Skapa en med knappen ovan.'));
+  else{
+    const tbl=el('table',{class:'list'});
+    tbl.appendChild(el('thead',{},el('tr',{},[th('Datum'),th('Tid'),th('Aktivitet'),th('Deltagare'),th('')])));
+    const tb=el('tbody');
+    upcoming.forEach(i=>{const tr=el('tr',{});
+      const parts=(i.participants||[]);
+      const pav=el('span',{},parts.map(pid=>el('span',{class:'ava',title:personName(pid),style:`display:inline-flex;width:22px;height:22px;border-radius:50%;align-items:center;justify-content:center;color:#fff;font-size:11px;margin-right:3px;background:${personColor(pid)}`},personIcon(pid))));
+      tr.append(td(i.date?longDate(i.date):'—'),td(i.start?`${i.start}${i.end?'–'+i.end:''}`:'heldag'),
+        td(el('div',{},[el('strong',{},i.title),i.description?el('div',{class:'muted',style:'font-size:12px'},i.description):null])),
+        td(parts.length?pav:el('span',{class:'muted'},'alla/ingen')),
+        td(el('button',{class:'icon-btn',onclick:()=>openEditor(i)},'✎')));
+      tb.appendChild(tr);});
+    tbl.appendChild(tb);main.append(tbl);
+  }
+
+  // användarhantering
+  main.append(renderUsersCard());
+}
+
+function renderUsersCard(){
+  const c=el('div',{class:'card full',style:'margin-top:16px'});
+  c.append(el('h3',{},'Användare'),el('p',{class:'muted',style:'margin-top:0'},'Lägg till användare, ändra färg, ikon (emoji), PIN-kod och personlig layout. Klicka på en användare för att redigera.'));
+  const list=el('div',{});
+  state.persons.forEach(p=>{list.appendChild(el('div',{class:'hstep'},[
+    el('span',{class:'ava',style:`width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:${p.color}`},p.icon||initial(p.name)),
+    el('span',{},p.name),el('span',{style:'flex:1'}),
+    el('span',{class:'muted',style:'font-size:12px'},p.pin?'🔒 PIN satt':'ingen PIN'),
+    el('button',{class:'icon-btn',onclick:()=>openPerson(p)},'✎')]));});
+  c.append(list,el('button',{class:'btn subtle sm',style:'margin-top:10px',onclick:()=>openPerson(null)},'＋ Lägg till användare'));
+  return c;
+}
+
+/* ============================================================ UPPGIFTER ============================================================ */
 function renderTasks(main){
-  main.append(toolbar());
+  main.append(controlsBar());
   const tasks=state.items.filter(i=>i.type==='task'&&passesFilters(i))
-    .sort((a,b)=> (a.done?1:0)-(b.done?1:0) || (a.date||'').localeCompare(b.date||'') || (toMin(a.start)??1e9)-(toMin(b.start)??1e9));
+    .sort((a,b)=>(a.done?1:0)-(b.done?1:0)||(a.date||'').localeCompare(b.date||'')||(toMin(a.start)??1e9)-(toMin(b.start)??1e9));
   const open=tasks.filter(t=>!t.done),done=tasks.filter(t=>t.done);
   const stat=el('div',{class:'stat',style:'margin-bottom:16px'});
-  stat.append(
-    box(open.length,'Öppna uppgifter'),
-    box(done.length,'Klara'),
-    box(open.filter(t=>t.date&&t.date<todayStr()).length,'Försenade')
-  );
+  stat.append(box(open.length,'Öppna uppgifter'),box(done.length,'Klara'),box(open.filter(t=>t.date&&t.date<todayStr()).length,'Försenade'));
   main.appendChild(stat);
-  if(!tasks.length){main.appendChild(el('div',{class:'card empty'},'Inga uppgifter matchar. Skapa en med “＋ Ny post” och välj typen Uppgift.'));return;}
+  if(!tasks.length){main.appendChild(el('div',{class:'card empty'},'Inga uppgifter. Skapa en med “＋ Ny post” och välj typen Uppgift.'));return;}
   const tbl=el('table',{class:'list'});
-  tbl.appendChild(el('thead',{},el('tr',{},[th(''),th('Uppgift'),th('Ansvarig'),th('Program'),th('Datum'),th('Tid'),th('')])));
+  tbl.appendChild(el('thead',{},el('tr',{},[th(''),th('Uppgift'),th('Ansvarig'),th('Deltagare'),th('Datum'),th('Tid'),th('')])));
   const tb=el('tbody');
-  tasks.forEach(t=>{
-    const tr=el('tr',{});
-    const cb=el('input',{type:'checkbox'});cb.checked=!!t.done;
-    cb.onchange=()=>{t.done=cb.checked;t.updatedAt=new Date().toISOString();logHistory('update',t,t.done?'markerad klar':'återöppnad');persist(t);renderMainOnly();};
-    tr.append(
-      td(cb),
-      td(el('div',{},[el('strong',{class:t.done?'muted':''},t.title),t.description?el('div',{class:'muted',style:'font-size:12px'},t.description):null])),
+  tasks.forEach(t=>{const tr=el('tr',{});const cb=el('input',{type:'checkbox'});cb.checked=!!t.done;
+    cb.onchange=()=>{if(!canEdit(t)){cb.checked=!cb.checked;toast('Du kan bara ändra dina egna uppgifter');return;}t.done=cb.checked;t.updatedAt=new Date().toISOString();logHistory('update',t,t.done?'markerad klar':'återöppnad');persist(t);renderMainOnly();};
+    const parts=(t.participants||[]).filter(pid=>pid!==t.personId);
+    tr.append(td(cb),
+      td(el('div',{},[el('strong',{class:t.done?'muted':''},t.title),t.description?el('div',{class:'muted',style:'font-size:12px'},t.description):null,t.shared?el('span',{class:'tag shared',style:'margin-top:4px'},'gemensam'):null])),
       td(personBadge(t.personId)),
-      td(t.program||'—'),
-      td(t.date?longDate(t.date):'—'),
-      td(t.start?`${t.start}${t.end?'–'+t.end:''}`:'—'),
-      td(el('button',{class:'icon-btn',onclick:()=>openEditor(t)},'✎'))
-    );
-    tb.appendChild(tr);
-  });
+      td(parts.length?el('span',{},parts.map(pid=>personIcon(pid)+' ').join('')):el('span',{class:'muted'},'—')),
+      td(t.date?longDate(t.date):'—'),td(t.start?`${t.start}${t.end?'–'+t.end:''}`:'—'),
+      td(el('button',{class:'icon-btn',onclick:()=>openEditor(t)},'✎')));
+    tb.appendChild(tr);});
   tbl.appendChild(tb);main.appendChild(tbl);
 }
 
-/* ============================================================
-   LIST (all upcoming, searchable across months)
-   ============================================================ */
+/* ============================================================ LISTA ============================================================ */
 function renderList(main){
-  main.append(toolbar());
-  const from=el('input',{class:'f',type:'date',value:state.monday});
-  const to=el('input',{class:'f',type:'date',value:addDays(state.monday,182)});
+  main.append(controlsBar());
   const bar=el('div',{class:'toolbar'});
-  bar.append(el('span',{class:'muted'},'Från'),from,el('span',{class:'muted'},'Till'),to,
-    el('button',{class:'btn subtle sm',onclick:()=>drawList()},'Uppdatera'),
-    el('span',{class:'muted',style:'font-size:12px'},'· visar upp till 6 månader framåt'));
+  const dayI=el('input',{class:'f',type:'date',value:ui.listDay||''});
+  const userSel=el('select',{class:'f'});userSel.appendChild(el('option',{value:'all'},'Alla användare'));
+  state.persons.forEach(p=>{const o=el('option',{value:p.id},p.name);if(ui.listUser===p.id)o.selected=true;userSel.appendChild(o);});
+  const from=el('input',{class:'f',type:'date',value:ui.listFrom||ui.monday});
+  const to=el('input',{class:'f',type:'date',value:ui.listTo||addDays(ui.monday,182)});
+  bar.append(el('span',{class:'muted'},'Dag'),dayI,
+    el('button',{class:'btn subtle sm',onclick:()=>{dayI.value='';draw();}},'Rensa dag'),
+    el('span',{class:'muted'},'Användare'),userSel,
+    el('span',{class:'muted'},'Från'),from,el('span',{class:'muted'},'Till'),to,
+    el('button',{class:'btn subtle sm',onclick:draw},'Uppdatera'));
   main.appendChild(bar);
   const holder=el('div',{});main.appendChild(holder);
-  function drawList(){
+  function draw(){
+    ui.listDay=dayI.value||'';ui.listUser=userSel.value;ui.listFrom=from.value;ui.listTo=to.value;saveUI();
     holder.innerHTML='';
-    const f=from.value||state.monday, t=to.value||addDays(state.monday,182);
-    const rows=state.items.filter(i=>passesFilters(i)&&i.date&&i.date>=f&&i.date<=t)
-      .sort((a,b)=>(a.date).localeCompare(b.date)||(toMin(a.start)??1e9)-(toMin(b.start)??1e9));
-    if(!rows.length){holder.appendChild(el('div',{class:'card empty'},'Inga poster i intervallet.'));return;}
-    let curDate=null,tbl,tb;
+    let rows=state.items.filter(i=>passesFilters(i)&&i.date);
+    if(userSel.value!=='all')rows=rows.filter(i=>itemInvolves(i,userSel.value));
+    if(dayI.value)rows=rows.filter(i=>i.date===dayI.value);
+    else{const f=from.value||ui.monday,tt=to.value||addDays(ui.monday,182);rows=rows.filter(i=>i.date>=f&&i.date<=tt);}
+    rows.sort((a,b)=>a.date.localeCompare(b.date)||(toMin(a.start)??1e9)-(toMin(b.start)??1e9));
+    if(!rows.length){holder.appendChild(el('div',{class:'card empty'},'Inga poster matchar.'));return;}
+    let curDate=null,tb;
     rows.forEach(i=>{
-      if(i.date!==curDate){
-        curDate=i.date;
-        holder.appendChild(el('h3',{style:'margin:18px 0 6px'},`${DAYS[(parseDate(i.date).getDay()+6)%7]} ${longDate(i.date)} · v${isoWeek(i.date)}`));
-        tbl=el('table',{class:'list'});tb=el('tbody');
-        tbl.appendChild(el('thead',{},el('tr',{},[th('Tid'),th('Typ'),th('Titel'),th('Ansvarig'),th('Program'),th('Plats'),th('')])));
-        tbl.appendChild(tb);holder.appendChild(tbl);
-      }
+      if(i.date!==curDate){curDate=i.date;
+        holder.appendChild(el('h3',{style:'margin:18px 0 6px'},`${DAYS[dowIndex(i.date)]} ${longDate(i.date)} · v${isoWeek(i.date)}`));
+        const tbl=el('table',{class:'list'});tb=el('tbody');
+        tbl.appendChild(el('thead',{},el('tr',{},[th('Tid'),th('Typ'),th('Titel'),th('Ansvarig'),th('Plats'),th('')])));
+        tbl.appendChild(tb);holder.appendChild(tbl);}
       const tr=el('tr',{});
-      tr.append(
-        td(i.start?`${i.start}${i.end?'–'+i.end:''}`:'heldag'),
-        td(el('span',{class:'tag '+(i.done?'done':i.type)},i.done?'klar':(i.type==='task'?'uppgift':'aktivitet'))),
+      tr.append(td(i.start?`${i.start}${i.end?'–'+i.end:''}`:'heldag'),
+        td(el('span',{class:'tag '+(i.done?'done':i.shared?'shared':i.type)},i.done?'klar':(i.shared?'gemensam':(i.type==='task'?'uppgift':'aktivitet')))),
         td(el('div',{},[el('strong',{},i.title),i.description?el('div',{class:'muted',style:'font-size:12px'},i.description):null])),
-        td(personBadge(i.personId)),td(i.program||'—'),td(i.location||'—'),
-        td(el('button',{class:'icon-btn',onclick:()=>openEditor(i)},'✎'))
-      );
-      tb.appendChild(tr);
-    });
+        td(personBadge(i.personId)),td(i.location||'—'),
+        td(el('button',{class:'icon-btn',onclick:()=>openEditor(i)},'✎')));
+      tb.appendChild(tr);});
   }
-  drawList();
+  draw();
 }
 
-/* ============================================================
-   HISTORY
-   ============================================================ */
+/* ============================================================ HISTORIK ============================================================ */
 function renderHistory(main){
   const bar=el('div',{class:'toolbar'});
-  bar.append(el('h3',{style:'margin:0'},'Ändringshistorik'),el('div',{style:'flex:1'}),
-    el('button',{class:'btn subtle sm',onclick:exportJSON},'⤓ Exportera säkerhetskopia'),
-    el('button',{class:'btn subtle sm',onclick:()=>{if(confirm('Rensa historiken? Poster och schema påverkas inte.')){state.history=[];save();renderMainOnly();}}},'Rensa'));
+  const fileIn=el('input',{type:'file',accept:'.json',style:'display:none',onchange:importJSON});
+  bar.append(el('h3',{style:'margin:0'},'Historik & kalenderuppdateringar'),el('div',{style:'flex:1'}),
+    el('button',{class:'btn subtle sm',onclick:exportJSON},'⤓ Exportera säkerhetskopia'),fileIn,
+    el('button',{class:'btn subtle sm',onclick:()=>fileIn.click()},'⤒ Importera säkerhetskopia'),
+    el('button',{class:'btn danger sm',onclick:resetAll},'🗑 Radera allt & börja om'));
   main.appendChild(bar);
-  if(!state.history.length){main.appendChild(el('div',{class:'card empty'},'Ingen historik ännu. Alla ändringar loggas här.'));return;}
-  const card=el('div',{class:'card'});
-  state.history.slice(0,400).forEach(h=>{
-    const d=new Date(h.ts);
-    card.appendChild(el('div',{class:'hstep'},[
+
+  // De 20 senaste kalenderuppdateringarna (CSV/iCal/feed/bild) – raderbara
+  const upd=el('div',{class:'card full'});
+  upd.append(el('h3',{},'Senaste kalenderuppdateringar (max 20)'),
+    el('p',{class:'muted',style:'margin-top:0'},'Varje import eller synk av kalenderinformation loggas här. Du kan radera alla poster som kom in med en viss uppdatering – borttagningen sparas och kommer inte tillbaka vid synk mot molnet.'));
+  if(!state.batches.length)upd.append(el('div',{class:'empty',style:'padding:20px'},'Inga kalenderuppdateringar ännu.'));
+  else state.batches.slice(0,20).forEach(b=>{
+    const remaining=state.items.filter(i=>i.batchId===b.id).length;
+    upd.append(el('div',{class:'batch'},[
+      el('span',{class:'kind '+b.kind},({csv:'CSV',ics:'ICS',feed:'Prenumeration',image:'Bild',manual:'Manuell'})[b.kind]||b.kind),
+      el('div',{style:'min-width:160px;flex:1'},[el('div',{},[el('strong',{},b.label)]),
+        el('div',{class:'hint'},`${new Date(b.ts).toLocaleString('sv-SE')} · ${b.by||'—'} · ${remaining} poster kvar`)]),
+      el('button',{class:'btn danger sm',onclick:()=>{if(confirm(`Radera alla ${remaining} poster som kom in med denna uppdatering?\n\n”${b.label}”\n\nDetta kan inte ångras.`))deleteBatch(b.id);}},'Radera denna uppdatering')
+    ]));
+  });
+  main.appendChild(upd);
+
+  // allmän ändringslogg
+  const card=el('div',{class:'card full',style:'margin-top:16px'});
+  card.append(el('div',{style:'display:flex;align-items:center'},[el('h3',{style:'margin:0'},'Ändringslogg'),el('div',{style:'flex:1'}),
+    el('button',{class:'btn subtle sm',onclick:()=>{if(confirm('Rensa ändringsloggen? Poster/schema påverkas inte.')){state.history=[];save();renderMainOnly();}}},'Rensa logg')]));
+  if(!state.history.length)card.append(el('div',{class:'empty',style:'padding:20px'},'Ingen historik ännu.'));
+  else state.history.slice(0,200).forEach(h=>{const d=new Date(h.ts);
+    card.append(el('div',{class:'hstep'},[
       el('span',{class:'act '+h.action},({create:'Skapad',update:'Ändrad',delete:'Borttagen',import:'Import'})[h.action]||h.action),
       el('span',{},[el('strong',{},h.itemTitle||'(utan titel)'),h.details?el('span',{class:'muted'},' · '+h.details):null]),
-      el('span',{style:'flex:1'}),
-      el('span',{class:'muted',style:'font-size:12px'},`${personName2(h.by)} · ${d.toLocaleString('sv-SE')}`)
-    ]));
-  });
+      el('span',{style:'flex:1'}),el('span',{class:'muted',style:'font-size:12px'},`${h.by||'—'} · ${d.toLocaleString('sv-SE')}`)]));});
   main.appendChild(card);
 }
-function personName2(n){return n||'—';}
+function resetAll(){
+  if(!confirm('Radera ALL information (poster, historik, uppdateringar, användare) och börja om med ett tomt schema?\n\nDetta raderar även i molnet vid nästa synk och kan inte ångras.'))return;
+  if(!confirm('Är du helt säker? Detta går inte att ångra.'))return;
+  state.items=[];state.history=[];state.batches=[];state.subscriptions=[];
+  seed();logHistory('delete',null,'Allt raderat – nytt schema');save();
+  toast('Allt raderat – nytt schema skapat');render();
+}
 
-/* ============================================================
-   SETTINGS
-   ============================================================ */
+/* ============================================================ INSTÄLLNINGAR ============================================================ */
 function renderSettings(main){
-  const s=state.settings;
-  const wrap=el('div',{class:'cards'});
+  const s=state.settings;const wrap=el('div',{class:'cards'});
 
-  // Persons
-  const pc=el('div',{class:'card'});
-  pc.append(el('h3',{},'Personer & behörighet'),el('p',{class:'muted',style:'margin-top:0'},'Upp till 3 personer administrerar schemat. Klicka för att redigera namn/färg.'));
-  state.persons.forEach(p=>{
-    pc.appendChild(el('div',{class:'hstep'},[
-      el('span',{class:'dot',style:`background:${p.color};width:14px;height:14px`}),
-      el('span',{},p.name),el('span',{style:'flex:1'}),
-      el('span',{class:'muted',style:'font-size:12px'},p.visible?'synlig':'dold'),
-      el('button',{class:'icon-btn',onclick:()=>openPerson(p)},'✎')
-    ]));
-  });
-  pc.appendChild(el('button',{class:'btn subtle sm',style:'margin-top:10px',onclick:()=>openPerson(null)},'＋ Lägg till person'));
-  wrap.appendChild(pc);
-
-  // Schedule display
-  const dc=el('div',{class:'card'});
-  dc.append(el('h3',{},'Schemavy'));
+  // Schemavy
+  const dc=el('div',{class:'card'});dc.append(el('h3',{},'Schemavy'));
   const rowStart=el('div',{class:'row2'});
-  rowStart.append(
-    labelWrap('Dagen börjar',selectNum(6,10,s.dayStart,v=>{s.dayStart=v;save();})),
-    labelWrap('Dagen slutar',selectNum(14,22,s.dayEnd,v=>{s.dayEnd=v;save();}))
-  );
+  rowStart.append(labelWrap('Dagen börjar',selectNum(5,11,s.dayStart,v=>{s.dayStart=v;save();})),
+    labelWrap('Dagen slutar',selectNum(13,23,s.dayEnd,v=>{s.dayEnd=v;save();})));
   dc.appendChild(rowStart);
-  const we=el('label',{class:'hstep',style:'cursor:pointer'});
-  const sw=el('span',{class:'switch'});const cb=el('input',{type:'checkbox'});cb.checked=s.showWeekend;
-  cb.onchange=()=>{s.showWeekend=cb.checked;save();};
-  sw.append(cb,el('span',{class:'sl'}));
-  we.append(el('span',{},'Visa helg (lör/sön)'),el('span',{style:'flex:1'}),sw);
-  dc.appendChild(we);
-  dc.appendChild(el('button',{class:'btn sm',style:'margin-top:10px',onclick:()=>{state.tab='week';render();}},'Tillämpa & visa schema'));
+  dc.appendChild(el('p',{class:'hint'},'Veckovyn visar alla sju dagar (mån–sön). Använd Dag / Arbetsvecka / Vecka / Månad-knapparna i schemat.'));
+  dc.appendChild(el('button',{class:'btn sm',style:'margin-top:6px',onclick:()=>{ui.tab='schedule';saveUI();render();}},'Visa schema'));
   wrap.appendChild(dc);
 
-  // Molnsynk (eget Supabase-projekt) – samma mekanism som DalaroKM, men eget projekt
-  const sc=el('div',{class:'card'});
-  sc.append(el('h3',{},'Molnsynk (eget Supabase-projekt)'),
-    el('p',{class:'muted',style:'margin-top:0'},'Delar schemat mellan alla enheter via ditt EGNA Supabase-projekt (samma mekanism som DalaroKM, men eget projekt och egen databas). Ange projektets URL och anon-nyckel nedan. Utan uppgifter körs appen enbart lokalt.'));
-  const url=el('input',{class:'f',style:'width:100%;margin-bottom:8px',placeholder:'https://ditt-projekt.supabase.co',value:s.supaUrl||''});
-  const key=el('input',{class:'f',type:'password',style:'width:100%;margin-bottom:8px',placeholder:'anon public key',value:s.supaKey||''});
-  sc.append(labelWrap('Project URL',url),labelWrap('Anon key',key));
-  const btns=el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px'});
-  btns.append(
-    el('button',{class:'btn sm',onclick:()=>{s.supaUrl=url.value.trim();s.supaKey=key.value.trim();save();cloudReconnect();toast(cloudEnabled()?'Ansluter…':'Sparat');}},'Spara & anslut'),
-    el('button',{class:'btn subtle sm',onclick:()=>{s.supaUrl='';s.supaKey='';save();cloudSetStatus('off');render();toast('Frånkopplad – lokal lagring');}},'Koppla från'),
-    el('button',{class:'btn subtle sm',onclick:showSchema},'Visa SQL-schema'),
-    el('button',{class:'btn subtle sm',onclick:()=>cloudForcePull()},'⤓ Hämta nu'),
-    el('button',{class:'btn subtle sm',onclick:()=>cloudForcePush()},'⤒ Spara nu')
-  );
-  sc.append(btns,el('div',{id:'supaStatus',class:'hint',style:'margin-top:8px'},cloudStatusText()));
-  wrap.appendChild(sc);
+  // Utseende (logga, bakgrund, rubrik)
+  const bc=el('div',{class:'card'});bc.append(el('h3',{},'Utseende & logga'));
+  const logoText=el('input',{class:'f',type:'text',maxlength:'3',value:(s.brand.logo||'GS'),oninput:e=>{s.brand.logo=e.target.value.slice(0,3)||'GS';applyTheme();}});
+  logoText.addEventListener('change',()=>save());
+  const logoFile=el('input',{type:'file',accept:'image/*',style:'display:none',onchange:e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{s.brand.logoImg=r.result;applyTheme();save();};r.readAsDataURL(f);}});
+  bc.append(labelWrap('Logga (text, t.ex. GS)',logoText),
+    el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px'},[
+      el('button',{class:'btn subtle sm',onclick:()=>logoFile.click()},'🖼 Ladda upp loggbild'),logoFile,
+      s.brand.logoImg?el('button',{class:'btn subtle sm',onclick:()=>{s.brand.logoImg='';applyTheme();save();}},'Ta bort loggbild'):null]));
+  bc.append(labelWrap('Bakgrundsfärg',colorRow(s.brand.bg||'#eef2f6',v=>{s.brand.bg=v;applyTheme();save();})));
+  bc.append(labelWrap('Rubrikfärg',colorRow(s.brand.heading||'#1c2733',v=>{s.brand.heading=v;applyTheme();save();})));
+  bc.append(labelWrap('Accentfärg',colorRow(s.brand.accent||'#2563eb',v=>{s.brand.accent=v;applyTheme();save();})));
+  bc.append(el('button',{class:'btn subtle sm',onclick:()=>{s.brand=defaultSettings().brand;applyTheme();save();render();}},'Återställ standardutseende'));
+  wrap.appendChild(bc);
 
-  // Prenumerationer (iCal-länk)
+  // Användare
+  const uc=el('div',{class:'card'});uc.append(el('h3',{},'Användare & inloggning'),
+    el('p',{class:'muted',style:'margin-top:0'},'Varje användare kan ha en 4-siffrig PIN och personlig layout. Masterkod (6 siffror) ger åtkomst till alla användare.'));
+  state.persons.forEach(p=>uc.append(el('div',{class:'hstep'},[
+    el('span',{class:'ava',style:`width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:${p.color}`},p.icon||initial(p.name)),
+    el('span',{},p.name),el('span',{style:'flex:1'}),el('span',{class:'muted',style:'font-size:12px'},p.pin?'🔒 PIN':'ingen PIN'),
+    el('button',{class:'icon-btn',onclick:()=>openPerson(p)},'✎')])));
+  uc.append(el('button',{class:'btn subtle sm',style:'margin-top:10px',onclick:()=>openPerson(null)},'＋ Lägg till användare'));
+  wrap.appendChild(uc);
+
+  // Importera kalender (flyttad hit från Schema)
+  const ic=el('div',{class:'card'});ic.append(el('h3',{},'Importera kalender'),
+    el('p',{class:'muted',style:'margin-top:0'},'Läs in schema från en CSV- eller ICS-fil, eller från en bild (OCR). Poster kopplas till vald ansvarig och loggas som en kalenderuppdatering i Historik.'));
+  ic.append(el('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},[
+    el('button',{class:'btn ghost',onclick:openImport},'⤓ Importera CSV/ICS-fil'),
+    el('button',{class:'btn ghost',onclick:openImageImport},'🖼 Läs in från bild')]));
+  wrap.appendChild(ic);
+
+  // Prenumerationer
   wrap.appendChild(renderSubscriptionsCard());
 
-  // Data
-  const bc=el('div',{class:'card'});
-  bc.append(el('h3',{},'Data & säkerhetskopia'),
-    el('div',{class:'stat',style:'margin-bottom:10px'},[box(state.items.length,'Poster'),box(state.history.length,'Historikrader')]));
-  const dbtn=el('div',{style:'display:flex;gap:8px;flex-wrap:wrap'});
-  const fileIn=el('input',{type:'file',accept:'.json',style:'display:none',onchange:importJSON});
-  dbtn.append(
-    el('button',{class:'btn subtle sm',onclick:exportJSON},'⤓ Exportera JSON'),
-    el('button',{class:'btn subtle sm',onclick:()=>fileIn.click()},'⤒ Importera JSON'),fileIn,
-    el('button',{class:'btn danger sm',onclick:()=>{if(confirm('Nollställ ALLT (poster, historik, personer)? Kan inte ångras.')){localStorage.removeItem(LS_KEY);location.reload();}}},'Nollställ allt')
-  );
-  bc.appendChild(dbtn);
-  wrap.appendChild(bc);
+  // Version & synk
+  const vc=el('div',{class:'card full'});vc.append(el('h3',{},'Version, synk & inställningar'));
+  const ref='hlognhxcmuukhxsthibn';
+  vc.append(el('div',{class:'stat',style:'margin-bottom:12px'},[box(state.items.length,'Poster'),box(state.persons.length,'Användare'),box(state.batches.length,'Uppdateringar'),box(state.history.length,'Historikrader')]));
+  vc.append(infoRow('App-version',`${APP_VERSION} (index.html, byggd ${APP_BUILD})`));
+  vc.append(infoRow('Molnsynk (Supabase)',cloudStatusText()));
+  vc.append(infoRow('Senaste synk',cloudLastSync?new Date(cloudLastSync).toLocaleString('sv-SE'):'—'));
+  vc.append(infoRow('Supabase-projekt',`${ref}.supabase.co · tabell "app_state" · rad "gymnasieschema"`));
+  vc.append(infoRow('Supabase-säkerhet','Anon-nyckel är hårdkodad i index.html (offentlig, skyddas av RLS). Project URL och nyckel ställs inte längre in i appen.'));
+  vc.append(infoRow('GitHub','patrikgune-beep/GymnasieSchema · gren main · publiceras som statisk index.html'));
+  vc.append(el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px'},[
+    el('button',{class:'btn subtle sm',onclick:()=>cloudForcePull()},'⤓ Hämta från molnet nu'),
+    el('button',{class:'btn subtle sm',onclick:()=>cloudForcePush()},'⤒ Spara till molnet nu'),
+    el('button',{class:'btn subtle sm',onclick:showSchema},'Visa SQL-schema')]));
+  wrap.appendChild(vc);
 
   main.appendChild(wrap);
 }
+function infoRow(k,v){return el('div',{class:'hstep'},[el('span',{class:'muted',style:'min-width:150px;font-size:13px'},k),el('span',{style:'flex:1;font-size:13px'},v)]);}
+function colorRow(val,cb){
+  const wrap=el('div',{style:'display:flex;gap:8px;align-items:center;flex-wrap:wrap'});
+  const inp=el('input',{type:'color',value:val,onchange:e=>cb(e.target.value),style:'width:44px;height:36px;border:1px solid var(--line);border-radius:9px;background:#fff'});
+  const sw=el('div',{class:'swatches'});
+  ['#eef2f6','#ffffff','#f1f5f9','#0f172a','#1c2733','#2563eb','#7c3aed','#16a34a','#dc2626','#d97706'].forEach(c=>sw.appendChild(el('button',{style:`background:${c};border:2px solid var(--line)`,onclick:()=>cb(c)})));
+  wrap.append(inp,sw);return wrap;
+}
 function selectNum(a,b,val,cb){const s=el('select',{class:'f',onchange:e=>cb(Number(e.target.value))});for(let i=a;i<=b;i++){const o=el('option',{value:i},`${pad(i)}:00`);if(i===val)o.selected=true;s.appendChild(o);}return s;}
 function labelWrap(lbl,node){return el('div',{class:'field'},[el('label',{},lbl),node]);}
-
-let _subEditId=null;   // vilken prenumeration som redigeras (null = ny)
-function renderSubscriptionsCard(){
-  const c=el('div',{class:'card'});
-  c.append(el('h3',{},'Prenumerationer (iCal-länk)'),
-    el('p',{class:'muted',style:'margin-top:0'},'Prenumerera på en iCal-/ICS-länk (t.ex. SchoolSoft) så uppdateras schemat automatiskt från länken. Vid uppdatering ersätts prenumerationens dagens/framtida poster – passerade poster behålls.'));
-
-  // lista
-  if(state.subscriptions.length){
-    state.subscriptions.forEach(sub=>{
-      const info=sub.lastError ? ('⚠ '+sub.lastError)
-        : (sub.lastSync ? `Senast: ${new Date(sub.lastSync).toLocaleString('sv-SE')}${sub.lastCount!=null?` · ${sub.lastCount} poster`:''}` : 'Aldrig uppdaterad');
-      c.appendChild(el('div',{class:'hstep',style:'flex-wrap:wrap'},[
-        el('span',{class:'dot',style:`background:${personColor(sub.personId)};width:12px;height:12px`}),
-        el('div',{style:'min-width:180px'},[el('div',{},[el('strong',{},sub.name||'(namnlös)')]),
-          el('div',{class:'hint',style:sub.lastError?'color:var(--red)':''},`${personName(sub.personId)} · ${info}`)]),
-        el('span',{style:'flex:1'}),
-        el('button',{class:'btn sm'+(sub.syncing?' subtle':''),onclick:()=>refreshSubscription(sub)},sub.syncing?'Uppdaterar…':'↻ Uppdatera nu'),
-        el('button',{class:'icon-btn',title:'Redigera',onclick:()=>{_subEditId=sub.id;render();}},'✎'),
-        el('button',{class:'icon-btn',title:'Ta bort',onclick:()=>{
-          if(confirm('Ta bort prenumerationen? Vill du även ta bort dess kommande poster ur schemat?\n\nOK = ta bort prenumeration + kommande poster\nAvbryt = behåll (avbryt borttagning)')) deleteSubscription(sub.id,true);
-        }},'🗑')
-      ]));
-    });
-  } else {
-    c.appendChild(el('p',{class:'muted',style:'font-size:13px'},'Inga prenumerationer ännu.'));
-  }
-
-  // formulär (ny/redigera)
-  const editing = _subEditId ? state.subscriptions.find(s=>s.id===_subEditId) : null;
-  const cur = editing || {name:'',url:'',personId:state.currentUser,program:''};
-  const form=el('div',{style:'border-top:1px solid var(--line);margin-top:10px;padding-top:12px'});
-  form.appendChild(el('div',{style:'font-weight:600;margin-bottom:8px'},editing?'Redigera prenumeration':'Lägg till prenumeration'));
-  const nameI=el('input',{class:'f',style:'width:100%;margin-bottom:8px',placeholder:'Namn (t.ex. SchoolSoft – Klass NA22)',value:cur.name||''});
-  const urlI=el('input',{class:'f',style:'width:100%;margin-bottom:8px',placeholder:'https://…/ical-feed/… (eller webcal://…)',value:cur.url||''});
-  const personSel=el('select',{class:'f'});state.persons.forEach(pp=>{const o=el('option',{value:pp.id},'Ansvarig: '+pp.name);if(pp.id===cur.personId)o.selected=true;personSel.appendChild(o);});
-  const progI=el('input',{class:'f',placeholder:'Program/klass (valfritt)',value:cur.program||''});
-  const row=el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px'});row.append(personSel,progI);
-  form.append(nameI,urlI,row);
-  const fbtns=el('div',{style:'display:flex;gap:8px;flex-wrap:wrap'});
-  fbtns.append(
-    el('button',{class:'btn sm',onclick:async()=>{
-      const url=urlI.value.trim();if(!url){toast('Ange iCal-länk');return;}
-      const data={id:editing?editing.id:undefined,name:nameI.value.trim()||'Prenumeration',url,personId:personSel.value,program:progI.value.trim()};
-      saveSubscription(data);
-      const sub=state.subscriptions.find(s=>s.url===url&&s.name===data.name)||state.subscriptions[state.subscriptions.length-1];
-      _subEditId=null;render();
-      if(sub)await refreshSubscription(sub);   // hämta direkt
-    }},editing?'Spara & uppdatera':'Lägg till & hämta'),
-    editing?el('button',{class:'btn subtle sm',onclick:()=>{_subEditId=null;render();}},'Avbryt'):null,
-    el('button',{class:'btn subtle sm',onclick:()=>refreshAllSubscriptions(false)},'↻ Uppdatera alla')
-  );
-  form.appendChild(fbtns);
-  // valfri CORS-proxy
-  const proxyI=el('input',{class:'f',style:'width:100%;margin-top:10px',placeholder:'Valfri CORS-proxy, t.ex. https://corsproxy.io/?url=',value:state.settings.feedProxy||''});
-  proxyI.addEventListener('change',()=>{state.settings.feedProxy=proxyI.value.trim();save();});
-  form.append(labelWrap('Egen CORS-proxy (valfritt)',proxyI),
-    el('div',{class:'hint'},'Många iCal-feeds (bl.a. SchoolSoft) tillåter inte direkta anrop från webbläsaren (CORS). Appen provar därför automatiskt några publika CORS-proxyer om direktanropet blockeras – oftast räcker det. Vill du styra vilken proxy som används kan du ange en egen här; då används bara den. Obs: länken innehåller ett hemligt token som då passerar via proxytjänsten.'));
-  c.appendChild(form);
-  return c;
-}
-// upprepnings-kontroller (delas av editor, CSV-import och bildimport)
-function recurControls(idPrefix,baseDateStr,defMode){
-  const selId=idPrefix+'recur', untilId=idPrefix+'recur_until', wrapId=idPrefix+'recur_until_wrap';
-  const sel=el('select',{class:'f',id:selId,onchange:()=>{const w=$('#'+wrapId);if(w)w.style.display=(sel.value==='none'?'none':'inline-flex');}},[
-    el('option',{value:'none'},'Ingen upprepning'),
-    el('option',{value:'weekly'},'Varje vecka'),
-    el('option',{value:'biweekly'},'Varannan vecka'),
-    el('option',{value:'monthly'},'En gång i månaden (samma datum)')
-  ]);
-  sel.value=defMode||'none';
-  const uwrap=el('span',{id:wrapId,style:`display:${(defMode&&defMode!=='none')?'inline-flex':'none'};align-items:center;gap:6px`},[
-    el('span',{class:'muted',style:'font-size:12px'},'t.o.m.'),
-    el('input',{class:'f',id:untilId,type:'date',value:addMonths(baseDateStr||todayStr(),6)})
-  ]);
-  const wrap=el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center'});
-  wrap.append(el('span',{class:'muted',style:'font-size:12px'},'🔁 Upprepning:'),sel,uwrap);
-  return wrap;
-}
-// skapa en eller flera poster (upprepning) med en enda historikrad
-function createItems(data,mode,until){
-  const dates=expandRecurrence(data.date,mode,until);
-  const created=[];
-  dates.forEach(dt=>{
-    const it=Object.assign({id:uid(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),source:data.source||'manual'},data,{date:dt});
-    state.items.push(it);created.push(it);
-  });
-  if(created.length===1)logHistory('create',created[0]);
-  else logHistory('create',null,`${data.title}: ${created.length} tillfällen (${recurLabel(mode)})`);
-  save();
-  return created;
-}
-
-/* ---------- small builders ---------- */
 function box(n,l){return el('div',{class:'box'},[el('div',{class:'n'},String(n)),el('div',{class:'l'},l)]);}
 function th(t){return el('th',{},t);}
 function td(c){return el('td',{},c);}
 function personBadge(id){if(!id)return el('span',{class:'muted'},'—');return el('span',{},[el('span',{class:'dot',style:`background:${personColor(id)}`}),personName(id)]);}
 
-/* ============================================================
-   EDITOR MODAL
-   ============================================================ */
-let editing=null;
-function quickAdd(date,start){openEditor({date,start,end:start?fromMin(clamp(toMin(start)+45,0,state.settings.dayEnd*60)):'',type:'activity'});}
+/* ---------- upprepning ---------- */
+function recurControls(idPrefix,baseDateStr,defMode){
+  const selId=idPrefix+'recur',wrapId=idPrefix+'recur_until_wrap',untilId=idPrefix+'recur_until';
+  const sel=el('select',{class:'f',id:selId,onchange:()=>{const w=$('#'+wrapId);if(w)w.style.display=(sel.value==='none'?'none':'inline-flex');}},[
+    el('option',{value:'none'},'Ingen upprepning'),el('option',{value:'weekly'},'Varje vecka'),
+    el('option',{value:'biweekly'},'Varannan vecka'),el('option',{value:'monthly'},'En gång i månaden (samma datum)')]);
+  sel.value=defMode||'none';
+  const uwrap=el('span',{id:wrapId,style:`display:${(defMode&&defMode!=='none')?'inline-flex':'none'};align-items:center;gap:6px`},[
+    el('span',{class:'muted',style:'font-size:12px'},'t.o.m.'),el('input',{class:'f',id:untilId,type:'date',value:addMonths(baseDateStr||todayStr(),6)})]);
+  const wrap=el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center'});
+  wrap.append(el('span',{class:'muted',style:'font-size:12px'},'🔁 Upprepning:'),sel,uwrap);return wrap;
+}
+function createItems(data,mode,until){
+  const dates=expandRecurrence(data.date,mode,until);const created=[];
+  dates.forEach(dt=>{const it=Object.assign({id:uid(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),source:data.source||'manual',participants:[],shared:false,createdBy:session.userId||null},data,{date:dt});state.items.push(it);created.push(it);});
+  if(created.length===1)logHistory('create',created[0]);
+  else logHistory('create',null,`${data.title}: ${created.length} tillfällen (${recurLabel(mode)})`);
+  save();return created;
+}
+
+/* ============================================================ EDITOR ============================================================ */
+let editing=null;let editorParticipants=new Set();
+function quickAdd(date,start,ownerId){openEditor({date,start,end:start?fromMin(clamp(toMin(start)+45,0,state.settings.dayEnd*60)):'',type:'activity',personId:ownerId||activeOwner()});}
 function openEditor(item){
   editing = item && item.id ? item : null;
-  const i = item || {type:'activity',date:state.monday,start:'',end:'',personId:state.currentUser};
-  $('#editorTitle').textContent = editing?'Redigera post':'Ny post';
-  $('#editorDelete').style.display = editing?'':'none';
+  const readOnly = editing ? !canEdit(editing) : false;
+  const i = item || {type:'activity',date:(ui.view==='day'?ui.selectedDate:ui.monday),start:'',end:'',personId:activeOwner()};
+  $('#editorTitle').textContent = editing?(readOnly?'Visa post':'Redigera post'):'Ny post';
+  $('#editorDelete').style.display = (editing&&!readOnly)?'':'none';
+  $('#editorSave').style.display = readOnly?'none':'';
   const b=$('#editorBody');b.innerHTML='';
+  editorParticipants = new Set(i.participants||[]);
 
+  if(readOnly)b.appendChild(el('p',{class:'hint',style:'background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:8px 10px;border-radius:8px'},'Denna post tillhör en annan användare. Du kan visa men inte ändra den. (Logga in som ägaren eller använd masterkod för att redigera.)'));
+
+  // typ
   const seg=el('div',{class:'seg'});
-  ['activity','task'].forEach(t=>{
-    seg.appendChild(el('button',{class:(i.type||'activity')===t?'active':'',onclick:e=>{
-      e.preventDefault();seg.querySelectorAll('button').forEach(x=>x.classList.remove('active'));e.target.classList.add('active');b.dataset.type=t;
-    }},t==='activity'?'Aktivitet':'Uppgift'));
-  });
+  ['activity','task'].forEach(t=>seg.appendChild(el('button',{class:(i.type||'activity')===t?'active':'',onclick:e=>{e.preventDefault();if(readOnly)return;seg.querySelectorAll('button').forEach(x=>x.classList.remove('active'));e.target.classList.add('active');b.dataset.type=t;}},t==='activity'?'Aktivitet':'Uppgift')));
   b.dataset.type=i.type||'activity';
 
-  b.append(
-    labelWrap('Typ',seg),
-    field('title','Titel *','text',i.title||'',{placeholder:'t.ex. Matematik 2b – lektion'}),
-    labelWrap('Beskrivning',el('textarea',{id:'f_description',placeholder:'Detaljer, länkar, anteckningar…'},i.description||'')),
-  );
+  b.append(labelWrap('Typ',seg),
+    field('title','Titel *','text',i.title||'',{placeholder:'t.ex. Matematik 2b'}),
+    labelWrap('Beskrivning',el('textarea',{id:'f_description',placeholder:'Detaljer, länkar, anteckningar…'},i.description||'')));
   const r1=el('div',{class:'row2'});
-  r1.append(field('date','Datum','date',i.date||state.monday),field('program','Program / klass','text',i.program||'',{placeholder:'t.ex. NA22, Teknik'}));
+  r1.append(field('date','Datum','date',i.date||ui.selectedDate),field('location','Plats / sal','text',i.location||'',{placeholder:'t.ex. Sal 214'}));
   b.appendChild(r1);
   const r2=el('div',{class:'row3'});
-  r2.append(field('start','Start','time',i.start||''),field('end','Slut','time',i.end||''),
-    labelWrap('Ansvarig',personSelect(i.personId||state.currentUser)));
+  r2.append(field('start','Start','time',i.start||''),field('end','Slut','time',i.end||''),labelWrap('Ansvarig',personSelect(i.personId||activeOwner(),readOnly)));
   b.appendChild(r2);
-  b.appendChild(field('location','Plats / sal','text',i.location||'',{placeholder:'t.ex. Sal 214'}));
 
-  if((i.type||'activity')==='task'||editing&&editing.type==='task'){}
+  // gemensam
+  const sharedWrap=el('label',{class:'hstep',style:'cursor:pointer'});
+  const shsw=el('span',{class:'switch'});const shcb=el('input',{type:'checkbox',id:'f_shared'});shcb.checked=!!i.shared;if(readOnly)shcb.disabled=true;
+  shcb.onchange=()=>{$('#f_participants').style.display=shcb.checked?'':'none';};
+  shsw.append(shcb,el('span',{class:'sl'}));
+  sharedWrap.append(el('span',{},'Gemensam aktivitet (egen färg, visas hos deltagarna)'),el('span',{style:'flex:1'}),shsw);
+  b.appendChild(sharedWrap);
+
+  // deltagare
+  const pWrap=el('div',{id:'f_participants',style:`display:${i.shared?'':'none'}`});
+  pWrap.append(el('label',{style:'display:block;font-size:12px;font-weight:600;color:var(--muted);margin:8px 0 5px'},'Deltagare (utöver ansvarig)'));
+  const pgrid=el('div',{style:'display:flex;gap:8px;flex-wrap:wrap'});
+  state.persons.forEach(p=>{const on=editorParticipants.has(p.id);
+    const tog=el('div',{class:'ptoggle'+(on?' on':''),onclick:()=>{if(readOnly)return;if(editorParticipants.has(p.id))editorParticipants.delete(p.id);else editorParticipants.add(p.id);tog.classList.toggle('on');}},[
+      el('span',{class:'ava',style:`width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:11px;background:${p.color}`},p.icon||initial(p.name)),p.name]);
+    pgrid.appendChild(tog);});
+  pWrap.appendChild(pgrid);b.appendChild(pWrap);
+
+  // klar
   const doneWrap=el('label',{class:'hstep',style:'cursor:pointer'});
-  const sw=el('span',{class:'switch'});const cb=el('input',{type:'checkbox',id:'f_done'});cb.checked=!!i.done;
+  const sw=el('span',{class:'switch'});const cb=el('input',{type:'checkbox',id:'f_done'});cb.checked=!!i.done;if(readOnly)cb.disabled=true;
   sw.append(cb,el('span',{class:'sl'}));
   doneWrap.append(el('span',{},'Markera som klar (för uppgifter)'),el('span',{style:'flex:1'}),sw);
   b.appendChild(doneWrap);
 
-  // upprepning – endast vid nyskapande
-  if(!editing){
-    b.appendChild(el('div',{style:'border-top:1px solid var(--line);margin-top:6px;padding-top:12px'},
-      recurControls('f_', i.date||state.monday, 'none')));
-  }
+  if(!editing)b.appendChild(el('div',{style:'border-top:1px solid var(--line);margin-top:6px;padding-top:12px'},recurControls('f_',i.date||ui.selectedDate,'none')));
+  if(readOnly)b.querySelectorAll('input,select,textarea').forEach(n=>{if(n.id!=='f_shared'&&n.id!=='f_done')n.setAttribute('readonly','readonly');});
 
   $('#editorOverlay').classList.add('show');
-  setTimeout(()=>$('#f_title')&&$('#f_title').focus(),40);
+  setTimeout(()=>{const f=$('#f_title');if(f&&!readOnly)f.focus();},40);
 }
-function field(id,label,type,val,extra={}){
-  const inp=el('input',Object.assign({id:'f_'+id,type},extra));inp.value=val||'';
-  return labelWrap(label,inp);
-}
-function personSelect(sel){const s=el('select',{id:'f_personId'});state.persons.forEach(p=>{const o=el('option',{value:p.id},p.name);if(p.id===sel)o.selected=true;s.appendChild(o);});return s;}
+function field(id,label,type,val,extra={}){const inp=el('input',Object.assign({id:'f_'+id,type},extra));inp.value=val||'';return labelWrap(label,inp);}
+function personSelect(sel,dis){const s=el('select',{id:'f_personId'});if(dis||(!session.master))s.disabled=true;state.persons.forEach(p=>{const o=el('option',{value:p.id},p.name);if(p.id===sel)o.selected=true;s.appendChild(o);});if(!session.master&&!dis){/* låst till egen, men behåll värde */s.disabled=true;}return s;}
 function closeEditor(){$('#editorOverlay').classList.remove('show');editing=null;}
 function saveFromEditor(){
-  const b=$('#editorBody');
-  const title=$('#f_title').value.trim();
+  const b=$('#editorBody');const title=$('#f_title').value.trim();
   if(!title){toast('Titel krävs');$('#f_title').focus();return;}
-  const data={
-    type:b.dataset.type||'activity',
-    title, description:$('#f_description').value.trim(),
-    date:$('#f_date').value||state.monday,
-    start:$('#f_start').value||'', end:$('#f_end').value||'',
-    program:$('#f_program').value.trim(), location:$('#f_location').value.trim(),
-    personId:$('#f_personId').value, done:$('#f_done').checked
-  };
+  let ownerId=$('#f_personId').value;
+  if(!session.master && !editing) ownerId=session.userId||ownerId;   // ny post: tvinga egen ägare
+  const data={type:b.dataset.type||'activity',title,description:$('#f_description').value.trim(),
+    date:$('#f_date').value||ui.selectedDate,start:$('#f_start').value||'',end:$('#f_end').value||'',
+    location:$('#f_location').value.trim(),personId:ownerId,done:$('#f_done').checked,
+    shared:$('#f_shared').checked,participants:[...editorParticipants].filter(id=>id!==ownerId)};
   if(data.start&&data.end&&toMin(data.end)<=toMin(data.start))data.end=fromMin(toMin(data.start)+45);
   if(editing){
-    Object.assign(editing,data);editing.updatedAt=new Date().toISOString();
-    logHistory('update',editing);persist(editing);
+    if(!canEdit(editing)){toast('Du kan bara ändra dina egna poster');return;}
+    Object.assign(editing,data);editing.updatedAt=new Date().toISOString();logHistory('update',editing);persist(editing);
   }else{
     const mode=$('#f_recur')?$('#f_recur').value:'none';
     const until=($('#f_recur_until')&&mode!=='none')?$('#f_recur_until').value:null;
@@ -967,789 +1056,387 @@ function saveFromEditor(){
   closeEditor();render();
 }
 function deleteFromEditor(){
-  if(!editing)return;
+  if(!editing)return;if(!canEdit(editing)){toast('Du kan bara ta bort dina egna poster');return;}
   if(!confirm('Ta bort denna post?'))return;
-  const it=editing;
-  state.items=state.items.filter(x=>x.id!==it.id);
-  logHistory('delete',it);
-  save();closeEditor();render();
+  const it=editing;state.items=state.items.filter(x=>x.id!==it.id);logHistory('delete',it);save();closeEditor();render();
 }
 
-/* ============================================================
-   PERSON MODAL
-   ============================================================ */
-let editingPerson=null;
+/* ============================================================ PERSON / ANVÄNDARE ============================================================ */
+let editingPerson=null;let personTheme=null;
 function openPerson(p){
+  if(p&&!canManagePerson(p)){toast('Endast användaren själv eller master kan ändra detta');return;}
   editingPerson=p||null;
-  $('#personTitle').textContent=p?'Redigera person':'Ny person';
-  $('#personDelete').style.display=p?'':'none';
+  $('#personTitle').textContent=p?'Redigera användare':'Ny användare';
+  $('#personDelete').style.display=(p&&session.master&&state.persons.length>1)?'':'none';
   const b=$('#personBody');b.innerHTML='';
-  const cur=p||{name:'',color:PALETTE[state.persons.length%PALETTE.length],visible:true};
+  const cur=p||{name:'',color:PALETTE[state.persons.length%PALETTE.length],icon:EMOJIS[state.persons.length%EMOJIS.length],pin:'',theme:null,visible:true};
+  personTheme = cur.theme?Object.assign({},cur.theme):null;
   b.appendChild(field2('pname','Namn','text',cur.name));
-  const colors=el('div',{style:'display:flex;gap:8px;flex-wrap:wrap'});
-  PALETTE.forEach(c=>{
-    const sw=el('button',{style:`width:30px;height:30px;border-radius:8px;border:3px solid ${c===cur.color?'#1c2733':'transparent'};background:${c};cursor:pointer`,
-      onclick:e=>{e.preventDefault();colors.querySelectorAll('button').forEach(x=>x.style.border='3px solid transparent');e.target.style.border='3px solid #1c2733';b.dataset.color=c;}});
-    colors.appendChild(sw);
-  });
+  // färg
+  const colors=el('div',{class:'swatches'});
+  PALETTE.forEach(c=>colors.appendChild(el('button',{style:`background:${c};border:3px solid ${c===cur.color?'#0f172a':'transparent'}`,onclick:e=>{e.preventDefault();colors.querySelectorAll('button').forEach(x=>x.style.border='3px solid transparent');e.target.style.border='3px solid #0f172a';b.dataset.color=c;}})));
   b.dataset.color=cur.color;
-  b.appendChild(labelWrap('Färg',colors));
-  if(!p && state.persons.length>=3)b.appendChild(el('p',{class:'hint'},'Obs: uppdraget nämner 3 administratörer – du kan lägga till fler om du vill.'));
+  const customC=el('input',{type:'color',value:cur.color,onchange:e=>{b.dataset.color=e.target.value;},style:'width:44px;height:34px;border:1px solid var(--line);border-radius:9px'});
+  b.appendChild(labelWrap('Färg',el('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'},[colors,customC])));
+  // ikon/emoji
+  const icons=el('div',{class:'swatches'});
+  EMOJIS.forEach(em=>icons.appendChild(el('button',{style:`background:#f1f5f9;border:2px solid ${em===cur.icon?'#0f172a':'var(--line)'};font-size:18px`,onclick:e=>{e.preventDefault();icons.querySelectorAll('button').forEach(x=>x.style.border='2px solid var(--line)');e.target.style.border='2px solid #0f172a';b.dataset.icon=em;}},em)));
+  b.dataset.icon=cur.icon||'';
+  const customE=el('input',{class:'f',type:'text',maxlength:'2',placeholder:'egen emoji',value:cur.icon||'',oninput:e=>{b.dataset.icon=e.target.value;},style:'width:90px'});
+  b.appendChild(labelWrap('Ikon (emoji)',el('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'},[icons,customE])));
+  // PIN
+  b.appendChild(field2('ppin','PIN-kod (4 siffror, valfritt)','text',cur.pin||'',{inputmode:'numeric',maxlength:'4',placeholder:'t.ex. 1234'}));
+  // personlig layout
+  const themeOn=el('label',{class:'hstep',style:'cursor:pointer'});const tsw=el('span',{class:'switch'});const tcb=el('input',{type:'checkbox',id:'p_theme_on'});tcb.checked=!!personTheme;
+  tcb.onchange=()=>{personTheme=tcb.checked?(personTheme||{bg:'#eef2f6',heading:'#1c2733',accent:cur.color}):null;drawThemeFields();};
+  tsw.append(tcb,el('span',{class:'sl'}));themeOn.append(el('span',{},'Personlig layout (egna färger vid inloggning)'),el('span',{style:'flex:1'}),tsw);
+  b.appendChild(themeOn);
+  const themeBox=el('div',{id:'p_theme_box'});b.appendChild(themeBox);
+  function drawThemeFields(){themeBox.innerHTML='';if(!personTheme)return;
+    themeBox.append(labelWrap('Bakgrundsfärg',colorRow(personTheme.bg||'#eef2f6',v=>personTheme.bg=v)),
+      labelWrap('Rubrikfärg',colorRow(personTheme.heading||'#1c2733',v=>personTheme.heading=v)),
+      labelWrap('Accentfärg',colorRow(personTheme.accent||cur.color,v=>personTheme.accent=v)));}
+  drawThemeFields();
   $('#personOverlay').classList.add('show');
 }
-function field2(id,label,type,val){const inp=el('input',{id:id,type});inp.value=val||'';return labelWrap(label,inp);}
+function field2(id,label,type,val,extra={}){const inp=el('input',Object.assign({id:id,type,class:'f',style:'width:100%'},extra));inp.value=val||'';return labelWrap(label,inp);}
 function closePerson(){$('#personOverlay').classList.remove('show');editingPerson=null;}
 function savePerson(){
   const name=$('#pname').value.trim();if(!name){toast('Namn krävs');return;}
-  const color=$('#personBody').dataset.color;
-  if(editingPerson){editingPerson.name=name;editingPerson.color=color;}
-  else{const np={id:uid(),name,color,visible:true};state.persons.push(np);}
-  save();closePerson();render();
+  const b=$('#personBody');const color=b.dataset.color;const icon=(b.dataset.icon||'').trim();
+  const pin=($('#ppin').value||'').replace(/\D/g,'').slice(0,4);
+  if(editingPerson){editingPerson.name=name;editingPerson.color=color;editingPerson.icon=icon;editingPerson.pin=pin;editingPerson.theme=personTheme;}
+  else{state.persons.push({id:uid(),name,color,icon,pin,theme:personTheme,visible:true});}
+  save();closePerson();applyTheme();render();
 }
 function deletePerson(){
-  if(!editingPerson)return;
-  if(state.persons.length<=1){toast('Minst en person krävs');return;}
-  if(!confirm('Ta bort personen? Poster med denna ansvarige behålls men blir utan ansvarig.'))return;
-  const id=editingPerson.id;
-  state.persons=state.persons.filter(p=>p.id!==id);
-  state.items.forEach(i=>{if(i.personId===id)i.personId=null;});
-  if(state.currentUser===id)state.currentUser=state.persons[0].id;
+  if(!editingPerson||!session.master)return;
+  if(state.persons.length<=1){toast('Minst en användare krävs');return;}
+  if(!confirm('Ta bort användaren? Poster där personen är ansvarig blir utan ansvarig.'))return;
+  const id=editingPerson.id;state.persons=state.persons.filter(p=>p.id!==id);
+  state.items.forEach(i=>{if(i.personId===id)i.personId=null;i.participants=(i.participants||[]).filter(x=>x!==id);});
   save();closePerson();render();
 }
 
-/* ============================================================
-   OUTLOOK CSV IMPORT
-   ============================================================ */
-let importParsed=null;
-let importSource='outlook';
-let importFormat='csv';   // 'csv' | 'ics'
+/* ============================================================ PRENUMERATIONER (iCal) ============================================================ */
+let _subEditId=null;
+function renderSubscriptionsCard(){
+  const c=el('div',{class:'card full'});
+  c.append(el('h3',{},'Prenumerationer (iCal-länk)'),
+    el('p',{class:'muted',style:'margin-top:0'},'Prenumerera på en iCal-/ICS-länk (t.ex. SchoolSoft). Vid uppdatering ersätts prenumerationens dagens/framtida poster – passerade poster behålls. Varje uppdatering loggas i Historik.'));
+  if(state.subscriptions.length){
+    state.subscriptions.forEach(sub=>{
+      const info=sub.lastError?('⚠ '+sub.lastError):(sub.lastSync?`Senast: ${new Date(sub.lastSync).toLocaleString('sv-SE')}${sub.lastCount!=null?` · ${sub.lastCount} poster`:''}`:'Aldrig uppdaterad');
+      c.appendChild(el('div',{class:'hstep',style:'flex-wrap:wrap'},[
+        el('span',{class:'dot',style:`background:${personColor(sub.personId)};width:12px;height:12px`}),
+        el('div',{style:'min-width:180px'},[el('div',{},[el('strong',{},sub.name||'(namnlös)')]),el('div',{class:'hint',style:sub.lastError?'color:var(--red)':''},`${personName(sub.personId)} · ${info}`)]),
+        el('span',{style:'flex:1'}),
+        el('button',{class:'btn sm'+(sub.syncing?' subtle':''),onclick:()=>refreshSubscription(sub)},sub.syncing?'Uppdaterar…':'↻ Uppdatera nu'),
+        el('button',{class:'icon-btn',title:'Redigera',onclick:()=>{_subEditId=sub.id;render();}},'✎'),
+        el('button',{class:'icon-btn',title:'Ta bort',onclick:()=>{if(confirm('Ta bort prenumerationen och dess kommande poster?'))deleteSubscription(sub.id,true);}},'🗑')]));
+    });
+  }else c.appendChild(el('p',{class:'muted',style:'font-size:13px'},'Inga prenumerationer ännu.'));
+  const editing=_subEditId?state.subscriptions.find(s=>s.id===_subEditId):null;
+  const cur=editing||{name:'',url:'',personId:activeOwner()};
+  const form=el('div',{style:'border-top:1px solid var(--line);margin-top:10px;padding-top:12px'});
+  form.appendChild(el('div',{style:'font-weight:600;margin-bottom:8px'},editing?'Redigera prenumeration':'Lägg till prenumeration'));
+  const nameI=el('input',{class:'f',style:'width:100%;margin-bottom:8px',placeholder:'Namn (t.ex. SchoolSoft – Klass NA22)',value:cur.name||''});
+  const urlI=el('input',{class:'f',style:'width:100%;margin-bottom:8px',placeholder:'https://…/ical-feed/… (eller webcal://…)',value:cur.url||''});
+  const personSel=el('select',{class:'f'});state.persons.forEach(pp=>{const o=el('option',{value:pp.id},'Ansvarig: '+pp.name);if(pp.id===cur.personId)o.selected=true;personSel.appendChild(o);});
+  form.append(nameI,urlI,personSel);
+  const fbtns=el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:8px'});
+  fbtns.append(el('button',{class:'btn sm',onclick:async()=>{
+      const url=urlI.value.trim();if(!url){toast('Ange iCal-länk');return;}
+      const data={id:editing?editing.id:undefined,name:nameI.value.trim()||'Prenumeration',url,personId:personSel.value};
+      saveSubscription(data);const sub=state.subscriptions.find(s=>s.url===url&&s.name===data.name)||state.subscriptions[state.subscriptions.length-1];
+      _subEditId=null;render();if(sub)await refreshSubscription(sub);
+    }},editing?'Spara & uppdatera':'Lägg till & hämta'),
+    editing?el('button',{class:'btn subtle sm',onclick:()=>{_subEditId=null;render();}},'Avbryt'):null,
+    el('button',{class:'btn subtle sm',onclick:()=>refreshAllSubscriptions(false)},'↻ Uppdatera alla'));
+  form.appendChild(fbtns);
+  const proxyI=el('input',{class:'f',style:'width:100%;margin-top:10px',placeholder:'Valfri CORS-proxy, t.ex. https://corsproxy.io/?url=',value:state.settings.feedProxy||''});
+  proxyI.addEventListener('change',()=>{state.settings.feedProxy=proxyI.value.trim();save();});
+  form.append(labelWrap('Egen CORS-proxy (valfritt)',proxyI),
+    el('div',{class:'hint'},'Appen provar automatiskt några publika CORS-proxyer om direktanropet blockeras (bl.a. SchoolSoft). Vill du styra vilken proxy som används kan du ange en egen här.'));
+  c.appendChild(form);return c;
+}
+let _feedTimer=null;
+function normFeedUrl(u){return (u||'').trim().replace(/^webcal:\/\//i,'https://');}
+const FEED_PROXIES=[u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),u=>'https://corsproxy.io/?url='+encodeURIComponent(u),u=>'https://thingproxy.freeboard.io/fetch/'+u];
+async function fetchCalendarFrom(url){const r=await fetch(url,{headers:{'Accept':'text/calendar, text/plain, */*'}});if(!r.ok)throw new Error('HTTP '+r.status);const txt=await r.text();if(!/BEGIN:VCALENDAR/i.test(txt))throw new Error('Svaret ser inte ut som en iCal-feed (saknar VCALENDAR).');return txt;}
+async function fetchFeedText(sub){
+  const proxy=(state.settings.feedProxy||'').trim();const target=normFeedUrl(sub.url);
+  if(proxy){try{return await fetchCalendarFrom(proxy+encodeURIComponent(target));}catch(e){throw new Error('Kunde inte hämta via angiven CORS-proxy: '+(e.message||e));}}
+  const attempts=[target,...FEED_PROXIES.map(fn=>fn(target))];let lastErr;
+  for(const u of attempts){try{return await fetchCalendarFrom(u);}catch(e){lastErr=e;}}
+  throw new Error('Kunde inte nå länken (nätverk/CORS) – prövade även flera CORS-proxyer.'+(lastErr&&lastErr.message?' ('+lastErr.message+')':''));
+}
+function feedFutureItems(subId){const t=todayStr();return state.items.filter(i=>i.source==='feed'&&i.feedId===subId&&i.date&&i.date>=t);}
+async function refreshSubscription(sub,opts={}){
+  sub.lastError='';sub.syncing=true;if(!opts.silent)renderMainOnly();
+  try{
+    const text=await fetchFeedText(sub);const events=parseICS(text);const t=todayStr();
+    const ids=new Set(feedFutureItems(sub.id).map(i=>i.id));state.items=state.items.filter(i=>!ids.has(i.id));
+    const batchId=logBatch('feed',`Prenumeration ”${sub.name}”`,0);let n=0;
+    events.forEach(ev=>{if(!ev.date||ev.date<t)return;
+      state.items.push({id:uid(),type:'activity',title:ev.title,description:ev.description,date:ev.date,start:ev.start,end:ev.end,location:ev.location,personId:sub.personId,participants:[],shared:false,done:false,source:'feed',feedId:sub.id,batchId,createdBy:sub.personId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});n++;});
+    const b=state.batches.find(x=>x.id===batchId);if(b)b.count=n;
+    sub.lastSync=Date.now();sub.lastCount=n;sub.syncing=false;
+    logHistory('import',null,`Prenumeration ”${sub.name}”: ${n} poster uppdaterade`);
+    save();if(!opts.silent){render();toast(`Prenumeration uppdaterad: ${n} poster`);}return n;
+  }catch(err){sub.lastError=err.message||String(err);sub.syncing=false;save();if(!opts.silent){renderMainOnly();toast('Kunde inte uppdatera: '+sub.lastError);}return -1;}
+}
+async function refreshAllSubscriptions(silent){for(const sub of (state.subscriptions||[])){if(sub.active!==false)await refreshSubscription(sub,{silent});}}
+function saveSubscription(data){if(data.id){const s=state.subscriptions.find(x=>x.id===data.id);if(s)Object.assign(s,data);}else{state.subscriptions.push(Object.assign({id:uid(),active:true,lastSync:0,lastError:''},data));}save();}
+function deleteSubscription(subId,alsoItems){const sub=state.subscriptions.find(s=>s.id===subId);state.subscriptions=state.subscriptions.filter(s=>s.id!==subId);if(alsoItems){const ids=new Set(feedFutureItems(subId).map(i=>i.id));state.items=state.items.filter(i=>!ids.has(i.id));}logHistory('delete',null,`Prenumeration borttagen${sub?': ”'+sub.name+'”':''}`);save();render();}
+function startFeedAutoRefresh(){if(_feedTimer)return;_feedTimer=setInterval(()=>{if(!document.querySelector('.overlay.show'))refreshAllSubscriptions(true);},3*60*60*1000);}
+
+/* ============================================================ IMPORT CSV/ICS ============================================================ */
+let importParsed=null,importSource='outlook',importFormat='csv';
 function openImport(){
   importSource='outlook';importFormat='csv';
   $('#importOverlay').querySelector('h2').textContent='Importera kalender (CSV eller ICS)';
-  const b=$('#importBody');b.innerHTML='';
-  const f=$('#importFooter');f.innerHTML='';
-  b.append(
-    el('p',{class:'muted',style:'margin-top:0'},'Välj en kalenderfil: Outlook-CSV (Subject, Start Date, Start Time, …) eller en ICS-fil (.ics, iCalendar – från Outlook, Google, Apple m.fl.). Format känns igen automatiskt och båda importeras på samma sätt.'),
-  );
+  const b=$('#importBody');b.innerHTML='';const f=$('#importFooter');f.innerHTML='';
+  b.append(el('p',{class:'muted',style:'margin-top:0'},'Välj en Outlook-CSV eller en ICS-fil (.ics). Format känns igen automatiskt.'));
   const drop=el('label',{class:'pill-file'},['📄 Välj CSV- eller ICS-fil…']);
-  const inp=el('input',{type:'file',accept:'.csv,.ics,text/csv,text/calendar',style:'display:none',onchange:e=>{
-    const file=e.target.files[0];if(!file)return;
-    file.text().then(t=>{
-      if(/\.ics$/i.test(file.name) || /BEGIN:VCALENDAR/i.test(t.slice(0,300))){ importFormat='ics'; handleICS(t); }
-      else { importFormat='csv'; handleCSV(t); }
-    });
-  }});
+  const inp=el('input',{type:'file',accept:'.csv,.ics,text/csv,text/calendar',style:'display:none',onchange:e=>{const file=e.target.files[0];if(!file)return;file.text().then(t=>{if(/\.ics$/i.test(file.name)||/BEGIN:VCALENDAR/i.test(t.slice(0,300))){importFormat='ics';handleICS(t);}else{importFormat='csv';handleCSV(t);}});}});
   drop.appendChild(inp);
-  const dateFmt=el('select',{class:'f',id:'imp_datefmt',title:'Endast för CSV – ICS-datum är entydiga'},[
-    el('option',{value:'auto'},'CSV-datumformat: automatiskt'),
-    el('option',{value:'mdy'},'MM/DD/YYYY (US)'),
-    el('option',{value:'dmy'},'DD/MM/YYYY (EU)'),
-    el('option',{value:'ymd'},'YYYY-MM-DD (ISO)')
-  ]);
-  const personSel=el('select',{class:'f',id:'imp_person'});
-  state.persons.forEach(p=>{const o=el('option',{value:p.id},'Ansvarig: '+p.name);if(p.id===state.currentUser)o.selected=true;personSel.appendChild(o);});
-  const progInp=el('input',{class:'f',id:'imp_program',placeholder:'Program/klass (valfritt)'});
-  const opts=el('div',{style:'display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0'});
-  opts.append(drop,dateFmt,personSel,progInp);
+  const dateFmt=el('select',{class:'f',id:'imp_datefmt'},[el('option',{value:'auto'},'CSV-datum: automatiskt'),el('option',{value:'mdy'},'MM/DD/YYYY (US)'),el('option',{value:'dmy'},'DD/MM/YYYY (EU)'),el('option',{value:'ymd'},'YYYY-MM-DD (ISO)')]);
+  const personSel=el('select',{class:'f',id:'imp_person'});state.persons.forEach(p=>{const o=el('option',{value:p.id},'Ansvarig: '+p.name);if(p.id===activeOwner())o.selected=true;personSel.appendChild(o);});
+  const opts=el('div',{style:'display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0'});opts.append(drop,dateFmt,personSel);
   b.appendChild(opts);
-  b.appendChild(el('div',{style:'margin:4px 0 12px'},recurControls('imp_',state.monday,'none')));
-
-  // --- hantera tidigare CSV-poster för vald ansvarig ---
+  b.appendChild(el('div',{style:'margin:4px 0 12px'},recurControls('imp_',ui.monday,'none')));
   const manage=el('div',{style:'border:1px solid var(--line);border-radius:10px;padding:12px;margin:4px 0 12px'});
   const countEl=el('span',{id:'imp_csvcount',class:'hint'});
-  function updateCsvCount(){const pid=$('#imp_person').value;const all=csvItemsForPerson(pid).length;const fut=csvFutureItemsForPerson(pid).length;const past=all-fut;
-    countEl.textContent=`${fut} kommande kalenderposter raderas för ${personName(pid)}${past?` · ${past} passerade behålls`:''}.`;}
-  const replaceWrap=el('label',{style:'display:inline-flex;align-items:center;gap:6px;font-size:13px'});
-  replaceWrap.append(el('input',{type:'checkbox',id:'imp_replace'}),'Ersätt: ta bort tidigare kalenderposter (dagens/framtida) för vald ansvarig vid import');
-  const delBtn=el('button',{class:'btn danger sm',onclick:()=>{
-    const pid=$('#imp_person').value;const n=csvFutureItemsForPerson(pid).length;
-    if(!n){toast('Inga kommande kalenderposter för '+personName(pid));return;}
-    if(confirm(`Ta bort ${n} inlästa kalenderposter (dagens och framtida) för ${personName(pid)}? Passerade poster behålls. Detta kan inte ångras.`)){
-      const d=deleteCsvItemsForPerson(pid);updateCsvCount();render();toast(`${d} poster borttagna, passerade behölls`);
-    }
-  }},'🗑 Ta bort kommande kalenderposter för vald ansvarig');
-  manage.append(el('div',{style:'font-weight:600;margin-bottom:6px'},'Tidigare inlästa kalenderposter (CSV/ICS)'),
-    countEl,el('div',{class:'hint',style:'margin-top:2px'},'Passerade poster (datum före idag) behålls alltid och ligger kvar i schemat och historiken.'),
-    el('div',{style:'display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px'},[delBtn,replaceWrap]));
-  b.appendChild(manage);
-  personSel.addEventListener('change',updateCsvCount);
-  updateCsvCount();
-
+  function updateCsvCount(){const pid=$('#imp_person').value;const fut=csvFutureItemsForPerson(pid).length;countEl.textContent=`${fut} kommande inlästa poster raderas för ${personName(pid)} om “Ersätt” är ikryssat.`;}
+  const replaceWrap=el('label',{style:'display:inline-flex;align-items:center;gap:6px;font-size:14px'});
+  replaceWrap.append(el('input',{type:'checkbox',id:'imp_replace'}),'Ersätt: ta bort tidigare inlästa poster (dagens/framtida) för vald ansvarig');
+  manage.append(el('div',{style:'font-weight:600;margin-bottom:6px'},'Tidigare inlästa poster'),countEl,el('div',{style:'margin-top:8px'},replaceWrap));
+  b.appendChild(manage);personSel.addEventListener('change',updateCsvCount);updateCsvCount();
   b.appendChild(el('div',{id:'imp_preview'}));
   f.appendChild(el('button',{class:'btn subtle',onclick:closeImport},'Avbryt'));
   $('#importOverlay').classList.add('show');
 }
 function closeImport(){$('#importOverlay').classList.remove('show');importParsed=null;ocrImageData=null;}
 function handleCSV(text){
-  let rows;
-  try{rows=parseCSV(text);}catch(e){toast('Kunde inte läsa CSV');return;}
+  let rows;try{rows=parseCSV(text);}catch(e){toast('Kunde inte läsa CSV');return;}
   if(!rows.length){toast('Tom fil');return;}
   const header=rows[0].map(h=>h.trim().toLowerCase());
-  const col=(names)=>{for(const n of names){const idx=header.indexOf(n);if(idx>=0)return idx;}return -1;};
-  const cSub=col(['subject','ämne','titel','summary']);
-  const cSD=col(['start date','startdatum','start']);
-  const cST=col(['start time','starttid']);
-  const cED=col(['end date','slutdatum','end']);
-  const cET=col(['end time','sluttid']);
-  const cAll=col(['all day event','heldagshändelse','all day']);
-  const cLoc=col(['location','plats']);
-  const cDesc=col(['description','beskrivning','body']);
-  const cCat=col(['categories','kategorier']);
+  const col=names=>{for(const n of names){const idx=header.indexOf(n);if(idx>=0)return idx;}return -1;};
+  const cSub=col(['subject','ämne','titel','summary']),cSD=col(['start date','startdatum','start']),cST=col(['start time','starttid']),cET=col(['end time','sluttid']),cAll=col(['all day event','heldagshändelse','all day']),cLoc=col(['location','plats']),cDesc=col(['description','beskrivning','body']),cCat=col(['categories','kategorier']);
   if(cSub<0){toast('Hittar ingen ämnes-/Subject-kolumn');return;}
-  const fmt=$('#imp_datefmt').value;
-  const parsed=[];
-  for(let r=1;r<rows.length;r++){
-    const row=rows[r];if(!row||!row.length)continue;
-    const subject=(row[cSub]||'').trim();if(!subject)continue;
-    const allday=cAll>=0 && /true|ja|yes|1/i.test((row[cAll]||''));
-    const sd=cSD>=0?normDate((row[cSD]||'').trim(),fmt):'';
-    if(!sd)continue;
-    const st=allday?'':(cST>=0?normTime(row[cST]):'');
-    const et=allday?'':(cET>=0?normTime(row[cET]):'');
-    parsed.push({
-      title:subject,date:sd,start:st,end:et,
-      location:cLoc>=0?(row[cLoc]||'').trim():'',
-      description:[cDesc>=0?(row[cDesc]||'').trim():'',cCat>=0&&row[cCat]?('Kategori: '+row[cCat]):''].filter(Boolean).join('\n'),
-    });
-  }
+  const fmt=$('#imp_datefmt').value;const parsed=[];
+  for(let r=1;r<rows.length;r++){const row=rows[r];if(!row||!row.length)continue;const subject=(row[cSub]||'').trim();if(!subject)continue;
+    const allday=cAll>=0&&/true|ja|yes|1/i.test((row[cAll]||''));const sd=cSD>=0?normDate((row[cSD]||'').trim(),fmt):'';if(!sd)continue;
+    parsed.push({title:subject,date:sd,start:allday?'':(cST>=0?normTime(row[cST]):''),end:allday?'':(cET>=0?normTime(row[cET]):''),location:cLoc>=0?(row[cLoc]||'').trim():'',description:[cDesc>=0?(row[cDesc]||'').trim():'',cCat>=0&&row[cCat]?('Kategori: '+row[cCat]):''].filter(Boolean).join('\n')});}
   renderCalendarPreview(parsed,'Inga rader kunde tolkas. Kontrollera datumformatet.');
 }
-// gemensam förhandsgranskning för CSV och ICS
 function renderCalendarPreview(parsed,emptyMsg){
-  importParsed=parsed;
-  const prev=$('#imp_preview');prev.innerHTML='';
+  importParsed=parsed;const prev=$('#imp_preview');prev.innerHTML='';
   if(!parsed.length){prev.appendChild(el('p',{class:'muted'},emptyMsg));return;}
   prev.appendChild(el('p',{style:'font-weight:600'},`${parsed.length} poster hittade (${importFormat.toUpperCase()}) – förhandsgranskning:`));
   const wrap=el('div',{style:'overflow:auto;max-height:280px;border:1px solid var(--line);border-radius:8px'});
-  const tbl=el('table',{class:'preview-tbl'});
-  tbl.appendChild(el('thead',{},el('tr',{},[th('Titel'),th('Datum'),th('Tid'),th('Plats')])));
-  const tb=el('tbody');
-  parsed.slice(0,50).forEach(p=>tb.appendChild(el('tr',{},[td(p.title),td(p.date),td(p.start?`${p.start}${p.end?'–'+p.end:''}`:'heldag'),td(p.location||'')])));
+  const tbl=el('table',{class:'preview-tbl'});tbl.appendChild(el('thead',{},el('tr',{},[th('Titel'),th('Datum'),th('Tid'),th('Plats')])));
+  const tb=el('tbody');parsed.slice(0,50).forEach(p=>tb.appendChild(el('tr',{},[td(p.title),td(p.date),td(p.start?`${p.start}${p.end?'–'+p.end:''}`:'heldag'),td(p.location||'')])));
   tbl.appendChild(tb);wrap.appendChild(tbl);prev.appendChild(wrap);
   if(parsed.length>50)prev.appendChild(el('p',{class:'muted',style:'font-size:12px'},`…och ${parsed.length-50} till.`));
   const f=$('#importFooter');f.innerHTML='';
-  f.append(el('button',{class:'btn subtle',onclick:closeImport},'Avbryt'),
-    el('button',{class:'btn',onclick:commitImport},`Importera ${parsed.length} poster`));
+  f.append(el('button',{class:'btn subtle',onclick:closeImport},'Avbryt'),el('button',{class:'btn',onclick:commitImport},`Importera ${parsed.length} poster`));
 }
-/* ---------- ICS (iCalendar) ---------- */
-function handleICS(text){
-  let parsed;
-  try{parsed=parseICS(text);}catch(e){toast('Kunde inte läsa ICS-filen');return;}
-  renderCalendarPreview(parsed,'Inga händelser (VEVENT) hittades i ICS-filen.');
-}
+function handleICS(text){let parsed;try{parsed=parseICS(text);}catch(e){toast('Kunde inte läsa ICS-filen');return;}renderCalendarPreview(parsed,'Inga händelser (VEVENT) hittades i ICS-filen.');}
 function unescapeICS(s){return (s||'').replace(/\\n/gi,'\n').replace(/\\,/g,',').replace(/\\;/g,';').replace(/\\\\/g,'\\');}
-function parseICSDateTime(field){
-  if(!field)return null;
-  const v=(field.val||'').trim();
-  const m=v.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?/);
-  if(!m)return null;
-  const y=+m[1],mo=+m[2],d=+m[3];
-  const isDate=(field.params&&field.params.VALUE==='DATE')||!m[4];
-  if(isDate)return {date:`${y}-${pad(mo)}-${pad(d)}`,time:'',allday:true};
-  const hh=+m[4],mi=+m[5],utc=m[7]==='Z';
-  if(utc){const dt=new Date(Date.UTC(y,mo-1,d,hh,mi));
-    return {date:`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`,time:`${pad(dt.getHours())}:${pad(dt.getMinutes())}`,allday:false};}
-  return {date:`${y}-${pad(mo)}-${pad(d)}`,time:`${pad(hh)}:${pad(mi)}`,allday:false}; // floating / TZID: vägg-tid
-}
+function parseICSDateTime(field){if(!field)return null;const v=(field.val||'').trim();const m=v.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?/);if(!m)return null;const y=+m[1],mo=+m[2],d=+m[3];const isDate=(field.params&&field.params.VALUE==='DATE')||!m[4];if(isDate)return {date:`${y}-${pad(mo)}-${pad(d)}`,time:'',allday:true};const hh=+m[4],mi=+m[5],utc=m[7]==='Z';if(utc){const dt=new Date(Date.UTC(y,mo-1,d,hh,mi));return {date:`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`,time:`${pad(dt.getHours())}:${pad(dt.getMinutes())}`,allday:false};}return {date:`${y}-${pad(mo)}-${pad(d)}`,time:`${pad(hh)}:${pad(mi)}`,allday:false};}
 function parseICS(text){
-  const raw=(text||'').replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-  const lines=[];   // veckla ut fortsättningsrader (börjar med mellanslag/tab)
-  for(const ln of raw){
-    if(lines.length && (ln.startsWith(' ')||ln.startsWith('\t'))) lines[lines.length-1]+=ln.slice(1);
-    else lines.push(ln);
-  }
+  const raw=(text||'').replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');const lines=[];
+  for(const ln of raw){if(lines.length&&(ln.startsWith(' ')||ln.startsWith('\t')))lines[lines.length-1]+=ln.slice(1);else lines.push(ln);}
   const events=[];let cur=null;
-  for(const ln of lines){
-    const t=ln.trim();
-    if(t==='BEGIN:VEVENT'){cur={};continue;}
-    if(t==='END:VEVENT'){if(cur)events.push(cur);cur=null;continue;}
-    if(!cur)continue;
-    const ci=ln.indexOf(':');if(ci<0)continue;
-    const left=ln.slice(0,ci),val=ln.slice(ci+1);
-    const semi=left.indexOf(';');
-    const name=(semi<0?left:left.slice(0,semi)).toUpperCase().trim();
-    const params={};
-    if(semi>=0)left.slice(semi+1).split(';').forEach(pr=>{const eq=pr.indexOf('=');if(eq>=0)params[pr.slice(0,eq).toUpperCase()]=pr.slice(eq+1);});
-    if(!(name in cur))cur[name]={val,params};   // första förekomsten vinner
-  }
-  const out=[];
-  events.forEach(ev=>{
-    const title=ev.SUMMARY?unescapeICS(ev.SUMMARY.val).trim():'';
-    if(!title)return;
-    const s=parseICSDateTime(ev.DTSTART);
-    if(!s||!s.date)return;
-    const e=ev.DTEND?parseICSDateTime(ev.DTEND):null;
-    const start=s.allday?'':s.time;
-    const end=s.allday?'':(e&&e.date===s.date?e.time:'');   // endast sluttid samma dag
-    out.push({
-      title,date:s.date,start,end,
-      location:ev.LOCATION?unescapeICS(ev.LOCATION.val).trim():'',
-      description:[ev.DESCRIPTION?unescapeICS(ev.DESCRIPTION.val).trim():'',ev.CATEGORIES?('Kategori: '+unescapeICS(ev.CATEGORIES.val).trim()):''].filter(Boolean).join('\n')
-    });
-  });
-  out.sort((a,b)=>(a.date).localeCompare(b.date)||(toMin(a.start)??1e9)-(toMin(b.start)??1e9));
-  return out;
+  for(const ln of lines){const t=ln.trim();if(t==='BEGIN:VEVENT'){cur={};continue;}if(t==='END:VEVENT'){if(cur)events.push(cur);cur=null;continue;}if(!cur)continue;const ci=ln.indexOf(':');if(ci<0)continue;const left=ln.slice(0,ci),val=ln.slice(ci+1);const semi=left.indexOf(';');const name=(semi<0?left:left.slice(0,semi)).toUpperCase().trim();const params={};if(semi>=0)left.slice(semi+1).split(';').forEach(pr=>{const eq=pr.indexOf('=');if(eq>=0)params[pr.slice(0,eq).toUpperCase()]=pr.slice(eq+1);});if(!(name in cur))cur[name]={val,params};}
+  const out=[];events.forEach(ev=>{const title=ev.SUMMARY?unescapeICS(ev.SUMMARY.val).trim():'';if(!title)return;const s=parseICSDateTime(ev.DTSTART);if(!s||!s.date)return;const e=ev.DTEND?parseICSDateTime(ev.DTEND):null;const start=s.allday?'':s.time;const end=s.allday?'':(e&&e.date===s.date?e.time:'');out.push({title,date:s.date,start,end,location:ev.LOCATION?unescapeICS(ev.LOCATION.val).trim():'',description:[ev.DESCRIPTION?unescapeICS(ev.DESCRIPTION.val).trim():'',ev.CATEGORIES?('Kategori: '+unescapeICS(ev.CATEGORIES.val).trim()):''].filter(Boolean).join('\n')});});
+  out.sort((a,b)=>a.date.localeCompare(b.date)||(toMin(a.start)??1e9)-(toMin(b.start)??1e9));return out;
 }
-
-/* ============================================================
-   PRENUMERATION PÅ iCal-LÄNK (t.ex. SchoolSoft)
-   Hämtar en iCal-feed och uppdaterar schemat. Varje prenumeration
-   är kopplad till en ansvarig; vid uppdatering ersätts prenumerationens
-   dagens/framtida poster (passerade behålls).
-   ============================================================ */
-let _feedTimer=null;
-function normFeedUrl(u){return (u||'').trim().replace(/^webcal:\/\//i,'https://');}
-// Inbyggda publika CORS-proxyer som prövas automatiskt om direktanropet blockeras.
-const FEED_PROXIES=[
-  u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),
-  u=>'https://corsproxy.io/?url='+encodeURIComponent(u),
-  u=>'https://thingproxy.freeboard.io/fetch/'+u,
-];
-async function fetchCalendarFrom(url){
-  const r=await fetch(url,{headers:{'Accept':'text/calendar, text/plain, */*'}});
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  const txt=await r.text();
-  if(!/BEGIN:VCALENDAR/i.test(txt)) throw new Error('Svaret ser inte ut som en iCal-feed (saknar VCALENDAR).');
-  return txt;
-}
-async function fetchFeedText(sub){
-  const proxy=(state.settings.feedProxy||'').trim();
-  const target=normFeedUrl(sub.url);
-  // Egen proxy angiven? Använd enbart den.
-  if(proxy){
-    try{ return await fetchCalendarFrom(proxy+encodeURIComponent(target)); }
-    catch(e){ throw new Error('Kunde inte hämta via angiven CORS-proxy: '+(e.message||e)); }
-  }
-  // Annars: prova direkt först, fall sedan tillbaka på inbyggda CORS-proxyer.
-  const attempts=[target,...FEED_PROXIES.map(fn=>fn(target))];
-  let lastErr;
-  for(const u of attempts){
-    try{ return await fetchCalendarFrom(u); }
-    catch(e){ lastErr=e; }
-  }
-  throw new Error('Kunde inte nå länken (nätverk/CORS) – prövade även flera CORS-proxyer. Prova att ange en egen CORS-proxy nedan.'+(lastErr&&lastErr.message?' ('+lastErr.message+')':''));
-}
-// dagens/framtida poster från en viss prenumeration (passerade behålls)
-function feedFutureItems(subId){const t=todayStr();return state.items.filter(i=>i.source==='feed' && i.feedId===subId && i.date && i.date>=t);}
-async function refreshSubscription(sub,opts={}){
-  sub.lastError='';sub.syncing=true;if(!opts.silent)renderMainOnly();
-  try{
-    const text=await fetchFeedText(sub);
-    const events=parseICS(text);
-    const t=todayStr();
-    // ta bort prenumerationens dagens/framtida poster och lägg in färska
-    const ids=new Set(feedFutureItems(sub.id).map(i=>i.id));
-    state.items=state.items.filter(i=>!ids.has(i.id));
-    let n=0;
-    events.forEach(ev=>{
-      if(!ev.date||ev.date<t)return;   // hoppa över passerade händelser
-      state.items.push({id:uid(),type:'activity',title:ev.title,description:ev.description,date:ev.date,
-        start:ev.start,end:ev.end,program:sub.program||'',location:ev.location,personId:sub.personId,done:false,
-        source:'feed',feedId:sub.id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
-      n++;
-    });
-    sub.lastSync=Date.now();sub.lastCount=n;sub.syncing=false;
-    logHistory('import',null,`Prenumeration ”${sub.name}”: ${n} poster uppdaterade`);
-    save();if(!opts.silent){render();toast(`Prenumeration uppdaterad: ${n} poster`);}
-    return n;
-  }catch(err){
-    sub.lastError=err.message||String(err);sub.syncing=false;save();
-    if(!opts.silent){renderMainOnly();toast('Kunde inte uppdatera: '+sub.lastError);}
-    return -1;
-  }
-}
-async function refreshAllSubscriptions(silent){
-  for(const sub of (state.subscriptions||[])){ if(sub.active!==false) await refreshSubscription(sub,{silent}); }
-}
-function saveSubscription(data){
-  if(data.id){const s=state.subscriptions.find(x=>x.id===data.id);if(s)Object.assign(s,data);}
-  else{state.subscriptions.push(Object.assign({id:uid(),active:true,lastSync:0,lastError:''},data));}
-  save();
-}
-function deleteSubscription(subId,alsoItems){
-  const sub=state.subscriptions.find(s=>s.id===subId);
-  state.subscriptions=state.subscriptions.filter(s=>s.id!==subId);
-  if(alsoItems){const ids=new Set(feedFutureItems(subId).map(i=>i.id));state.items=state.items.filter(i=>!ids.has(i.id));}
-  logHistory('delete',null,`Prenumeration borttagen${sub?': ”'+sub.name+'”':''}`);
-  save();render();
-}
-function startFeedAutoRefresh(){
-  if(_feedTimer)return;
-  _feedTimer=setInterval(()=>{ if(!document.querySelector('.overlay.show')) refreshAllSubscriptions(true); }, 3*60*60*1000); // var 3:e timme
-}
-
-// CSV-importerade (Outlook) poster för en viss ansvarig
-function csvItemsForPerson(pid){return state.items.filter(i=>i.source==='outlook' && i.personId===pid);}
-// endast dagens och framtida CSV-poster (passerade poster behålls alltid)
-function csvFutureItemsForPerson(pid){const t=todayStr();return state.items.filter(i=>i.source==='outlook' && i.personId===pid && i.date && i.date>=t);}
-function deleteCsvItemsForPerson(pid){
-  const victims=csvFutureItemsForPerson(pid);   // passerade poster raderas aldrig
-  if(!victims.length)return 0;
-  const ids=new Set(victims.map(v=>v.id));
-  state.items=state.items.filter(i=>!ids.has(i.id));
-  logHistory('delete',null,`${victims.length} CSV-poster (dagens/framtida) borttagna för ${personName(pid)} – passerade behölls`);
-  save();
-  return victims.length;
-}
+function csvItemsForPerson(pid){return state.items.filter(i=>(i.source==='outlook'||i.source==='ics'||i.source==='image')&&i.personId===pid);}
+function csvFutureItemsForPerson(pid){const t=todayStr();return state.items.filter(i=>(i.source==='outlook'||i.source==='ics'||i.source==='image')&&i.personId===pid&&i.date&&i.date>=t);}
+function deleteCsvItemsForPerson(pid){const victims=csvFutureItemsForPerson(pid);if(!victims.length)return 0;const ids=new Set(victims.map(v=>v.id));state.items=state.items.filter(i=>!ids.has(i.id));logHistory('delete',null,`${victims.length} inlästa poster (dagens/framtida) borttagna för ${personName(pid)}`);save();return victims.length;}
 function commitImport(){
   if(!importParsed||!importParsed.length)return;
   const pid=$('#imp_person').value;
-  const prog=$('#imp_program').value.trim();
-  const mode=$('#imp_recur')?$('#imp_recur').value:'none';
-  const until=($('#imp_recur_until')&&mode!=='none')?$('#imp_recur_until').value:null;
-  // ersätt: ta bort tidigare CSV-poster för vald ansvarig innan import
-  let removed=0;
-  if(importSource==='outlook' && $('#imp_replace') && $('#imp_replace').checked){
-    removed=deleteCsvItemsForPerson(pid);
-  }
-  let n=0;
-  importParsed.forEach(p=>{
-    expandRecurrence(p.date,mode,until).forEach(dt=>{
-      const it={id:uid(),type:(p.type||'activity'),title:p.title,description:p.description,date:dt,start:p.start,end:p.end,
-        program:prog,location:p.location,personId:pid,done:false,source:importSource,
-        createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
-      state.items.push(it);n++;
-    });
-  });
-  const recTxt = mode!=='none' ? ` (upprepning: ${recurLabel(mode)})` : '';
-  const srcTxt = importSource==='image' ? 'bild' : (importFormat==='ics' ? 'ICS-kalender' : 'CSV');
+  const mode=$('#imp_recur')?$('#imp_recur').value:'none';const until=($('#imp_recur_until')&&mode!=='none')?$('#imp_recur_until').value:null;
+  let removed=0;if(importSource==='outlook'&&$('#imp_replace')&&$('#imp_replace').checked)removed=deleteCsvItemsForPerson(pid);
+  const src=importSource==='image'?'image':(importFormat==='ics'?'ics':'outlook');
+  const kind=importSource==='image'?'image':(importFormat==='ics'?'ics':'csv');
+  const srcTxt=importSource==='image'?'bild (OCR)':(importFormat==='ics'?'ICS-kalender':'CSV');
+  const batchId=logBatch(kind,`Import från ${srcTxt}`,0);let n=0;
+  importParsed.forEach(p=>{expandRecurrence(p.date,mode,until).forEach(dt=>{state.items.push({id:uid(),type:(p.type||'activity'),title:p.title,description:p.description,date:dt,start:p.start,end:p.end,location:p.location,personId:pid,participants:[],shared:false,done:false,source:src,batchId,createdBy:pid,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});n++;});});
+  const b=state.batches.find(x=>x.id===batchId);if(b)b.count=n;
+  const recTxt=mode!=='none'?` (upprepning: ${recurLabel(mode)})`:'';
   logHistory('import',null,`${n} poster importerade från ${srcTxt}${recTxt}`);
-  save();closeImport();render();
-  toast(removed?`${removed} tidigare borttagna, ${n} importerade`:`${n} poster importerade`);
+  save();closeImport();render();toast(removed?`${removed} tidigare borttagna, ${n} importerade`:`${n} poster importerade`);
 }
 
-/* ============================================================
-   BILDIMPORT (OCR) – ladda upp en bild på ett schema
-   ============================================================ */
+/* ============================================================ BILDIMPORT (OCR) ============================================================ */
 let ocrImageData=null;
 function openImageImport(){
   importSource='image';importParsed=null;ocrImageData=null;
   $('#importOverlay').querySelector('h2').textContent='Läs in schema från bild';
-  const b=$('#importBody');b.innerHTML='';
-  const f=$('#importFooter');f.innerHTML='';
-  b.append(el('p',{class:'muted',style:'margin-top:0'},'Ladda upp en bild eller skärmbild på ett schema. Texten läses av automatiskt (OCR) i webbläsaren – granska och rätta den vid behov innan du tolkar den till poster. Bäst resultat med skarp, rak bild och tydlig text.'));
-
-  // file + preview
+  const b=$('#importBody');b.innerHTML='';const f=$('#importFooter');f.innerHTML='';
+  b.append(el('p',{class:'muted',style:'margin-top:0'},'Ladda upp en bild på ett schema. Texten läses av (OCR) i webbläsaren – granska och rätta den innan du tolkar den.'));
   const drop=el('label',{class:'pill-file'},['🖼 Välj bild…']);
-  const inp=el('input',{type:'file',accept:'image/*',style:'display:none',onchange:e=>{const file=e.target.files[0];if(file)readImage(file);}});
-  drop.appendChild(inp);
-  const thumb=el('div',{id:'ocr_thumb',style:'margin:0'});
-  const runBtn=el('button',{class:'btn',id:'ocr_run',onclick:runOCR,disabled:'disabled'},['🔍 Läs av bild (OCR)']);
-  const prog=el('span',{id:'ocr_prog',class:'hint',style:'margin-left:4px'},'');
-
-  // options
-  const baseDate=el('input',{class:'f',id:'imp_date',type:'date',value:state.monday});
-  const wdWrap=el('label',{style:'display:inline-flex;align-items:center;gap:6px;font-size:13px'});
-  const wdCb=el('input',{type:'checkbox',id:'imp_weekday',onchange:()=>{if(($('#ocr_text').value||'').trim())parseImageText();}});wdCb.checked=true;
-  wdWrap.append(wdCb,'Känn igen veckodagar (mån–sön)');
-  const ntWrap=el('label',{style:'display:inline-flex;align-items:center;gap:6px;font-size:13px'});
-  const ntCb=el('input',{type:'checkbox',id:'imp_keepnotime',onchange:()=>{if(($('#ocr_text').value||'').trim())parseImageText();}});ntCb.checked=true;
-  ntWrap.append(ntCb,'Ta med rader utan tid (heldag)');
-  const personSel=el('select',{class:'f',id:'imp_person'});
-  state.persons.forEach(p=>{const o=el('option',{value:p.id},'Ansvarig: '+p.name);if(p.id===state.currentUser)o.selected=true;personSel.appendChild(o);});
-  const progInp=el('input',{class:'f',id:'imp_program',placeholder:'Program/klass (valfritt)'});
-
-  const optsA=el('div',{style:'display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0'});
-  optsA.append(drop,runBtn,prog);
-  b.appendChild(optsA);
-  b.appendChild(thumb);
-  const optsB=el('div',{style:'display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:12px 0'});
-  optsB.append(el('span',{class:'muted',style:'font-size:12px'},'Startdatum (måndag för veckoschema):'),baseDate,wdWrap,ntWrap,personSel,progInp);
-  b.appendChild(optsB);
-
-  // upprepning
-  b.appendChild(el('div',{style:'margin:4px 0 12px'},recurControls('imp_',state.monday,'none')));
-
-  // editable OCR text + parse button
-  b.appendChild(el('label',{style:'display:block;font-size:12px;font-weight:600;color:var(--muted);margin:6px 0 4px'},'Avläst text via OCR (redigerbar – du kan även klistra in text manuellt):'));
-  b.appendChild(el('textarea',{id:'ocr_text',placeholder:'Här visas den avlästa texten. En rad per aktivitet, t.ex.:\nMåndag\n08:15-09:45 Matematik 2b Sal 214\n10:00 Utvecklingssamtal',
-    style:'width:100%;min-height:150px;padding:10px;border:1px solid var(--line);border-radius:9px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;resize:vertical'}));
-  const parseBtn=el('button',{class:'btn ghost',style:'margin-top:8px',onclick:parseImageText},['⚙ Tolka schema']);
-  b.appendChild(parseBtn);
+  const inp=el('input',{type:'file',accept:'image/*',style:'display:none',onchange:e=>{const file=e.target.files[0];if(file)readImage(file);}});drop.appendChild(inp);
+  const thumb=el('div',{id:'ocr_thumb'});const runBtn=el('button',{class:'btn',id:'ocr_run',onclick:runOCR,disabled:true},['🔍 Läs av bild (OCR)']);const prog=el('span',{id:'ocr_prog',class:'hint',style:'margin-left:4px'},'');
+  const baseDate=el('input',{class:'f',id:'imp_date',type:'date',value:ui.monday});
+  const wdWrap=el('label',{style:'display:inline-flex;align-items:center;gap:6px;font-size:14px'});const wdCb=el('input',{type:'checkbox',id:'imp_weekday',onchange:()=>{if(($('#ocr_text').value||'').trim())parseImageText();}});wdCb.checked=true;wdWrap.append(wdCb,'Känn igen veckodagar');
+  const ntWrap=el('label',{style:'display:inline-flex;align-items:center;gap:6px;font-size:14px'});const ntCb=el('input',{type:'checkbox',id:'imp_keepnotime',onchange:()=>{if(($('#ocr_text').value||'').trim())parseImageText();}});ntCb.checked=true;ntWrap.append(ntCb,'Ta med rader utan tid');
+  const personSel=el('select',{class:'f',id:'imp_person'});state.persons.forEach(p=>{const o=el('option',{value:p.id},'Ansvarig: '+p.name);if(p.id===activeOwner())o.selected=true;personSel.appendChild(o);});
+  const optsA=el('div',{style:'display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0'});optsA.append(drop,runBtn,prog);b.appendChild(optsA);b.appendChild(thumb);
+  const optsB=el('div',{style:'display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:12px 0'});optsB.append(el('span',{class:'muted',style:'font-size:12px'},'Startdatum (måndag):'),baseDate,wdWrap,ntWrap,personSel);b.appendChild(optsB);
+  b.appendChild(el('div',{style:'margin:4px 0 12px'},recurControls('imp_',ui.monday,'none')));
+  b.appendChild(el('label',{style:'display:block;font-size:12px;font-weight:600;color:var(--muted);margin:6px 0 4px'},'Avläst text (redigerbar):'));
+  b.appendChild(el('textarea',{id:'ocr_text',placeholder:'Här visas avläst text. En rad per aktivitet, t.ex.:\nMåndag\n08:15-09:45 Matematik 2b Sal 214',style:'width:100%;min-height:150px;padding:10px;border:1px solid var(--line);border-radius:9px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;resize:vertical'}));
+  b.appendChild(el('button',{class:'btn ghost',style:'margin-top:8px',onclick:parseImageText},['⚙ Tolka schema']));
   b.appendChild(el('div',{id:'imp_preview',style:'margin-top:12px'}));
-
   f.append(el('button',{class:'btn subtle',onclick:closeImport},'Avbryt'));
   $('#importOverlay').classList.add('show');
 }
-function readImage(file){
-  const r=new FileReader();
-  r.onload=()=>{
-    ocrImageData=r.result;
-    const t=$('#ocr_thumb');t.innerHTML='';
-    t.appendChild(el('img',{src:r.result,style:'max-width:100%;max-height:220px;border:1px solid var(--line);border-radius:8px'}));
-    const rb=$('#ocr_run');if(rb)rb.disabled=false;
-  };
-  r.readAsDataURL(file);
-}
-function loadTesseract(){
-  if(window.Tesseract)return Promise.resolve(window.Tesseract);
-  if(window.__tessPromise)return window.__tessPromise;
-  window.__tessPromise=new Promise((resolve,reject)=>{
-    const s=document.createElement('script');
-    s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-    s.onload=()=>window.Tesseract?resolve(window.Tesseract):reject(new Error('Tesseract laddades inte'));
-    s.onerror=()=>reject(new Error('Kunde inte ladda OCR-biblioteket'));
-    document.head.appendChild(s);
-  });
-  return window.__tessPromise;
-}
-async function runOCR(){
-  if(!ocrImageData){toast('Välj en bild först');return;}
-  const prog=$('#ocr_prog');const rb=$('#ocr_run');
-  rb.disabled=true;prog.textContent='Laddar OCR-motor…';
-  try{
-    const T=await loadTesseract();
-    prog.textContent='Läser av bild… (första gången laddas språkdata ned)';
-    const {data}=await T.recognize(ocrImageData,'swe+eng',{logger:m=>{
-      if(m&&m.status){const pct=m.progress?` ${Math.round(m.progress*100)}%`:'';prog.textContent=`${m.status}${pct}`;}
-    }});
-    $('#ocr_text').value=(data&&data.text)?data.text.trim():'';
-    prog.textContent='Klart – granska texten och klicka “Tolka schema”.';
-    parseImageText();
-  }catch(err){
-    console.error('OCR',err);
-    prog.textContent='OCR kunde inte köras (kräver nätåtkomst). Du kan skriva/klistra in texten manuellt nedan.';
-    toast('OCR misslyckades – skriv in texten manuellt');
-  }finally{rb.disabled=false;}
-}
-
+function readImage(file){const r=new FileReader();r.onload=()=>{ocrImageData=r.result;const t=$('#ocr_thumb');t.innerHTML='';t.appendChild(el('img',{src:r.result,style:'max-width:100%;max-height:220px;border:1px solid var(--line);border-radius:8px'}));const rb=$('#ocr_run');if(rb)rb.disabled=false;};r.readAsDataURL(file);}
+function loadTesseract(){if(window.Tesseract)return Promise.resolve(window.Tesseract);if(window.__tessPromise)return window.__tessPromise;window.__tessPromise=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';s.onload=()=>window.Tesseract?resolve(window.Tesseract):reject(new Error('Tesseract laddades inte'));s.onerror=()=>reject(new Error('Kunde inte ladda OCR-biblioteket'));document.head.appendChild(s);});return window.__tessPromise;}
+async function runOCR(){if(!ocrImageData){toast('Välj en bild först');return;}const prog=$('#ocr_prog'),rb=$('#ocr_run');rb.disabled=true;prog.textContent='Laddar OCR-motor…';try{const T=await loadTesseract();prog.textContent='Läser av bild…';const {data}=await T.recognize(ocrImageData,'swe+eng',{logger:m=>{if(m&&m.status){const pct=m.progress?` ${Math.round(m.progress*100)}%`:'';prog.textContent=`${m.status}${pct}`;}}});$('#ocr_text').value=(data&&data.text)?data.text.trim():'';prog.textContent='Klart – granska texten och klicka “Tolka schema”.';parseImageText();}catch(err){prog.textContent='OCR kunde inte köras. Skriv/klistra in texten manuellt.';toast('OCR misslyckades – skriv in texten manuellt');}finally{rb.disabled=false;}}
 const WEEKDAYS_MAP={'måndag':0,'mån':0,'monday':0,'tisdag':1,'tis':1,'tuesday':1,'onsdag':2,'ons':2,'wednesday':2,'torsdag':3,'tor':3,'tors':3,'thursday':3,'fredag':4,'fre':4,'friday':4,'lördag':5,'lör':5,'saturday':5,'söndag':6,'sön':6,'sunday':6};
-function detectWeekday(line){
-  const m=line.toLowerCase().match(/\b(måndag|tisdag|onsdag|torsdag|fredag|lördag|söndag|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mån|tis|ons|tors|tor|fre|lör|sön)\b/);
-  return m?WEEKDAYS_MAP[m[1]]:null;
-}
+function detectWeekday(line){const m=line.toLowerCase().match(/\b(måndag|tisdag|onsdag|torsdag|fredag|lördag|söndag|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mån|tis|ons|tors|tor|fre|lör|sön)\b/);return m?WEEKDAYS_MAP[m[1]]:null;}
 const WD_RE=/\b(måndag|tisdag|onsdag|torsdag|fredag|lördag|söndag|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mån|tis|ons|tors|tor|fre|lör|sön)\b/gi;
 const ROOM_RE=/\b(sal|rum|room|lokal|hus)\s*\.?\s*([0-9]{1,4}[a-zA-ZåäöÅÄÖ]?|[a-zA-ZåäöÅÄÖ]\s?[0-9]{1,4})\b/i;
-// one time token: 08:15 / 8.15 / 08 : 15
 const TIME_G=/(\d{1,2})\s*[:.]\s*(\d{2})/g;
 let lastParseInfo={lines:0,items:0,rawLines:[]};
-function extractRoom(text){
-  const m=text.match(ROOM_RE);
-  if(!m)return {text,room:''};
-  const room=m[1].charAt(0).toUpperCase()+m[1].slice(1).toLowerCase()+' '+m[2].replace(/\s+/g,'');
-  return {text:text.replace(ROOM_RE,' '),room};
-}
-function cleanTitle(t){
-  return (t||'').replace(WD_RE,' ').replace(/\s{2,}/g,' ')
-    .replace(/^[\s\-–—:|.,;/•·]+|[\s\-–—:|.,;/•·]+$/g,'').trim();
-}
+function extractRoom(text){const m=text.match(ROOM_RE);if(!m)return {text,room:''};const room=m[1].charAt(0).toUpperCase()+m[1].slice(1).toLowerCase()+' '+m[2].replace(/\s+/g,'');return {text:text.replace(ROOM_RE,' '),room};}
+function cleanTitle(t){return (t||'').replace(WD_RE,' ').replace(/\s{2,}/g,' ').replace(/^[\s\-–—:|.,;/•·]+|[\s\-–—:|.,;/•·]+$/g,'').trim();}
 function parseImageText(){
-  const text=$('#ocr_text').value||'';
-  const useWeekday=$('#imp_weekday') ? $('#imp_weekday').checked : true;
-  const keepNoTime=$('#imp_keepnotime') ? $('#imp_keepnotime').checked : true;
-  const baseVal=$('#imp_date').value||state.monday;
-  const base = useWeekday ? mondayOf(baseVal) : baseVal;
-  const rawLines=text.split(/\r?\n/).map(s=>s.replace(/\t+/g,'  ').trim());
-  const lines=rawLines.filter(Boolean);
-  let curOffset=0;
-  const items=[];
-
-  function add(title,start,end,room,offset){
-    title=cleanTitle(title);
-    if(!title){ if(!start)return; title='(namnlös)'; }
-    if(!start && !keepNoTime)return;
-    if(!start && title.length<2)return;
-    const date = useWeekday ? addDays(base,offset) : base;
-    items.push({title,date,start,end:end||'',location:room||'',description:'',type:'activity'});
-  }
-
-  lines.forEach(line=>{
-    const wd = useWeekday ? detectWeekday(line) : null;
-    if(wd!==null)curOffset=wd;
-    const work=line.replace(/\s+/g,' ').trim();
-    // find all time tokens in this line
-    const marks=[]; let m;
-    TIME_G.lastIndex=0;
-    while((m=TIME_G.exec(work))){marks.push({idx:m.index,len:m[0].length,t:`${pad(+m[1])}:${m[2]}`});}
-    if(marks.length===0){
-      // no time -> whole line is an all-day activity / heading
-      const r=extractRoom(work);
-      add(r.text,'','',r.room,curOffset);
-      return;
-    }
-    const pre=work.slice(0,marks[0].idx); // text before the first time (often the title)
-    let i=0, first=true;
-    while(i<marks.length){
-      const sm=marks[i]; let start=sm.t, end='';
-      let bodyStart=sm.idx+sm.len, bodyEnd=marks[i+1]?marks[i+1].idx:work.length, next=i+1;
-      // is the following time an END time? (gap between is empty or just a range separator)
-      if(marks[i+1]){
-        const gap=work.slice(sm.idx+sm.len,marks[i+1].idx).trim();
-        if(gap==='' || /^(?:[-–—]|till|to|kl\.?)$/i.test(gap)){
-          end=marks[i+1].t;
-          bodyStart=marks[i+1].idx+marks[i+1].len;
-          bodyEnd=marks[i+2]?marks[i+2].idx:work.length;
-          next=i+2;
-        }
-      }
-      let body=work.slice(bodyStart,bodyEnd);
-      if(first && pre.trim()) body = pre+' '+body;   // attach pre-time title to first block
-      const r=extractRoom(body);
-      add(r.text,start,end,r.room,curOffset);
-      first=false; i=next;
-    }
-  });
-  importParsed=items;
-  lastParseInfo={lines:lines.length,items:items.length,rawLines:lines.slice(0,60)};
-  renderImagePreview();
+  const text=$('#ocr_text').value||'';const useWeekday=$('#imp_weekday')?$('#imp_weekday').checked:true;const keepNoTime=$('#imp_keepnotime')?$('#imp_keepnotime').checked:true;
+  const baseVal=$('#imp_date').value||ui.monday;const base=useWeekday?mondayOf(baseVal):baseVal;
+  const rawLines=text.split(/\r?\n/).map(s=>s.replace(/\t+/g,'  ').trim());const lines=rawLines.filter(Boolean);let curOffset=0;const items=[];
+  function add(title,start,end,room,offset){title=cleanTitle(title);if(!title){if(!start)return;title='(namnlös)';}if(!start&&!keepNoTime)return;if(!start&&title.length<2)return;const date=useWeekday?addDays(base,offset):base;items.push({title,date,start,end:end||'',location:room||'',description:'',type:'activity'});}
+  lines.forEach(line=>{const wd=useWeekday?detectWeekday(line):null;if(wd!==null)curOffset=wd;const work=line.replace(/\s+/g,' ').trim();const marks=[];let m;TIME_G.lastIndex=0;while((m=TIME_G.exec(work))){marks.push({idx:m.index,len:m[0].length,t:`${pad(+m[1])}:${m[2]}`});}
+    if(marks.length===0){const r=extractRoom(work);add(r.text,'','',r.room,curOffset);return;}
+    const pre=work.slice(0,marks[0].idx);let i=0,first=true;
+    while(i<marks.length){const sm=marks[i];let start=sm.t,end='';let bodyStart=sm.idx+sm.len,bodyEnd=marks[i+1]?marks[i+1].idx:work.length,next=i+1;
+      if(marks[i+1]){const gap=work.slice(sm.idx+sm.len,marks[i+1].idx).trim();if(gap===''||/^(?:[-–—]|till|to|kl\.?)$/i.test(gap)){end=marks[i+1].t;bodyStart=marks[i+1].idx+marks[i+1].len;bodyEnd=marks[i+2]?marks[i+2].idx:work.length;next=i+2;}}
+      let body=work.slice(bodyStart,bodyEnd);if(first&&pre.trim())body=pre+' '+body;const r=extractRoom(body);add(r.text,start,end,r.room,curOffset);first=false;i=next;}});
+  importParsed=items;lastParseInfo={lines:lines.length,items:items.length,rawLines:lines.slice(0,60)};renderImagePreview();
 }
 function renderImagePreview(){
-  const prev=$('#imp_preview');prev.innerHTML='';
-  const f=$('#importFooter');f.innerHTML='';f.append(el('button',{class:'btn subtle',onclick:closeImport},'Avbryt'));
-  const items=importParsed||[];
-  // diagnostics line
-  prev.appendChild(el('div',{class:'hint',style:'margin-bottom:8px'},`Diagnostik (OCR): ${lastParseInfo.lines} textrader lästes · ${items.length} poster tolkade.`));
-  if(!items.length){
-    prev.appendChild(el('p',{class:'muted'},'Inga poster kunde tolkas ur texten. Så här ser de avlästa raderna ut – rätta dem i rutan ovan (en aktivitet per rad, gärna med en tid som 08:15 eller 08:15–09:45) och klicka “Tolka schema” igen:'));
-    const box=el('div',{class:'code',style:'max-height:180px'}, (lastParseInfo.rawLines||[]).join('\n')||'(tomt)');
-    prev.appendChild(box);
-    return;
-  }
-  prev.appendChild(el('p',{style:'font-weight:600'},`Granska nedan – rätta datum/ansvarig efter import vid behov:`));
-  const wrap=el('div',{style:'overflow:auto;max-height:240px;border:1px solid var(--line);border-radius:8px'});
-  const tbl=el('table',{class:'preview-tbl'});
-  tbl.appendChild(el('thead',{},el('tr',{},[th('Titel'),th('Datum'),th('Dag'),th('Tid'),th('Plats')])));
-  const tb=el('tbody');
-  items.forEach(p=>{const dow=DAYS[(parseDate(p.date).getDay()+6)%7];
-    tb.appendChild(el('tr',{},[td(p.title),td(p.date),td(dow),td(p.start?`${p.start}${p.end?'–'+p.end:''}`:'heldag'),td(p.location||'')]));});
-  tbl.appendChild(tb);wrap.appendChild(tbl);prev.appendChild(wrap);
-  f.append(el('button',{class:'btn',onclick:commitImport},`Importera ${items.length} poster`));
+  const prev=$('#imp_preview');prev.innerHTML='';const f=$('#importFooter');f.innerHTML='';f.append(el('button',{class:'btn subtle',onclick:closeImport},'Avbryt'));
+  const items=importParsed||[];prev.appendChild(el('div',{class:'hint',style:'margin-bottom:8px'},`Diagnostik: ${lastParseInfo.lines} textrader · ${items.length} poster tolkade.`));
+  if(!items.length){prev.appendChild(el('p',{class:'muted'},'Inga poster kunde tolkas. Rätta texten (en aktivitet per rad, gärna med tid) och tolka igen:'));prev.appendChild(el('div',{class:'code',style:'max-height:180px'},(lastParseInfo.rawLines||[]).join('\n')||'(tomt)'));return;}
+  prev.appendChild(el('p',{style:'font-weight:600'},'Granska nedan:'));
+  const wrap=el('div',{style:'overflow:auto;max-height:240px;border:1px solid var(--line);border-radius:8px'});const tbl=el('table',{class:'preview-tbl'});
+  tbl.appendChild(el('thead',{},el('tr',{},[th('Titel'),th('Datum'),th('Dag'),th('Tid'),th('Plats')])));const tb=el('tbody');
+  items.forEach(p=>{const dow=DAYS[dowIndex(p.date)];tb.appendChild(el('tr',{},[td(p.title),td(p.date),td(dow),td(p.start?`${p.start}${p.end?'–'+p.end:''}`:'heldag'),td(p.location||'')]));});
+  tbl.appendChild(tb);wrap.appendChild(tbl);prev.appendChild(wrap);f.append(el('button',{class:'btn',onclick:commitImport},`Importera ${items.length} poster`));
 }
 
-// robust CSV parser (handles quotes, commas, newlines, CRLF)
-function parseCSV(text){
-  const rows=[];let row=[],cur='',q=false;
-  text=text.replace(/^﻿/,'');
-  for(let i=0;i<text.length;i++){
-    const c=text[i];
-    if(q){
-      if(c==='"'){if(text[i+1]==='"'){cur+='"';i++;}else q=false;}
-      else cur+=c;
-    }else{
-      if(c==='"')q=true;
-      else if(c===','){row.push(cur);cur='';}
-      else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';}
-      else if(c==='\r'){/*skip*/}
-      else cur+=c;
-    }
-  }
-  if(cur!==''||row.length){row.push(cur);rows.push(row);}
-  return rows.filter(r=>r.length>1||r[0]!=='');
-}
-function normDate(s,fmt){
-  if(!s)return '';
-  s=s.trim();
-  let m;
-  if((m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)))return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;
-  if((m=s.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/))){
-    let a=+m[1],b=+m[2],y=+m[3];if(y<100)y+=2000;
-    let day,mon;
-    if(fmt==='mdy'){mon=a;day=b;}
-    else if(fmt==='dmy'){day=a;mon=b;}
-    else if(fmt==='ymd'){mon=b;day=y;y=a;if(y<100)y+=2000;}
-    else{ // auto: if first>12 it's a day
-      if(a>12){day=a;mon=b;}else if(b>12){mon=a;day=b;}else{mon=a;day=b;} // default US MDY when ambiguous
-    }
-    if(mon<1||mon>12||day<1||day>31)return '';
-    return `${y}-${pad(mon)}-${pad(day)}`;
-  }
-  const d=new Date(s);if(!isNaN(d))return dstr(d);
-  return '';
-}
-function normTime(s){
-  if(!s)return '';s=s.trim();
-  let m=s.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap]m)?/i);
-  if(!m)return '';
-  let h=+m[1],mi=+m[2];const ap=m[3];
-  if(ap){if(/pm/i.test(ap)&&h<12)h+=12;if(/am/i.test(ap)&&h===12)h=0;}
-  return `${pad(h)}:${pad(mi)}`;
-}
+/* ---------- CSV/tid ---------- */
+function parseCSV(text){const rows=[];let row=[],cur='',q=false;text=text.replace(/^﻿/,'');for(let i=0;i<text.length;i++){const c=text[i];if(q){if(c==='"'){if(text[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}else{if(c==='"')q=true;else if(c===','){row.push(cur);cur='';}else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';}else if(c==='\r'){}else cur+=c;}}if(cur!==''||row.length){row.push(cur);rows.push(row);}return rows.filter(r=>r.length>1||r[0]!=='');}
+function normDate(s,fmt){if(!s)return '';s=s.trim();let m;if((m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)))return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;if((m=s.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/))){let a=+m[1],b=+m[2],y=+m[3];if(y<100)y+=2000;let day,mon;if(fmt==='mdy'){mon=a;day=b;}else if(fmt==='dmy'){day=a;mon=b;}else if(fmt==='ymd'){mon=b;day=y;y=a;if(y<100)y+=2000;}else{if(a>12){day=a;mon=b;}else if(b>12){mon=a;day=b;}else{mon=a;day=b;}}if(mon<1||mon>12||day<1||day>31)return '';return `${y}-${pad(mon)}-${pad(day)}`;}const d=new Date(s);if(!isNaN(d))return dstr(d);return '';}
+function normTime(s){if(!s)return '';s=s.trim();let m=s.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap]m)?/i);if(!m)return '';let h=+m[1],mi=+m[2];const ap=m[3];if(ap){if(/pm/i.test(ap)&&h<12)h+=12;if(/am/i.test(ap)&&h===12)h=0;}return `${pad(h)}:${pad(mi)}`;}
 
-/* ============================================================
-   IMPORT/EXPORT JSON
-   ============================================================ */
-function exportJSON(){
-  const data={version:1,exportedAt:new Date().toISOString(),persons:state.persons,items:state.items,history:state.history,settings:state.settings};
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const a=el('a',{href:URL.createObjectURL(blob),download:`gymnasieschema-${todayStr()}.json`});
-  document.body.appendChild(a);a.click();a.remove();
-}
-function importJSON(e){
-  const file=e.target.files[0];if(!file)return;
-  file.text().then(t=>{
-    try{const d=JSON.parse(t);
-      if(d.persons)state.persons=d.persons;
-      if(d.items)state.items=d.items;
-      if(d.history)state.history=d.history;
-      if(d.settings)Object.assign(state.settings,d.settings);
-      if(!state.currentUser||!state.persons.find(p=>p.id===state.currentUser))state.currentUser=state.persons[0].id;
-      save();render();toast('Data importerad');
-    }catch(err){toast('Ogiltig JSON-fil');}
-  });
-  e.target.value='';
-}
+/* ---------- export / import JSON ---------- */
+function exportJSON(){const data={version:2,exportedAt:new Date().toISOString(),persons:state.persons,items:state.items,history:state.history,batches:state.batches,subscriptions:state.subscriptions,settings:state.settings};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=el('a',{href:URL.createObjectURL(blob),download:`gymnasieschema-${todayStr()}.json`});document.body.appendChild(a);a.click();a.remove();}
+function importJSON(e){const file=e.target.files[0];if(!file)return;file.text().then(t=>{try{const d=JSON.parse(t);if(d.persons)state.persons=d.persons;if(d.items)state.items=d.items;if(d.history)state.history=d.history;if(d.batches)state.batches=d.batches;if(d.subscriptions)state.subscriptions=d.subscriptions;if(d.settings)Object.assign(state.settings,d.settings);normalizePersons();normalizeItems();save();render();toast('Data importerad');}catch(err){toast('Ogiltig JSON-fil');}});e.target.value='';}
 
-/* ============================================================
-   PERSISTENCE + MOLNSYNK (Supabase)
-   Samma mekanism som DalaroKM, men ett EGET Supabase-projekt (inte
-   DalaroKM:s). Hela tillståndet lagras som en JSON-blob i en egen tabell
-   "app_state" (rad "gymnasieschema"). Direkt REST-anrop, localStorage
-   som offline-backup.
-
-   Ange ditt EGNA projekts värden nedan (eller i appen under
-   Inställningar → Molnsynk). Lämna tomt för att köra enbart lokalt.
-   ============================================================ */
-const SUPA_URL_DEFAULT="https://hlognhxcmuukhxsthibn.supabase.co";   // hårdkodat projekt – används om inget anges under Inställningar
-const SUPA_KEY_DEFAULT="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsb2duaHhjbXV1a2h4c3RoaWJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2NDY2MjksImV4cCI6MjEwMjIyMjYyOX0.4UCoQjYkoEf6Bt46Dxf2FA6q8wKPnTXX19rvBFVbWRE";   // anon public key (offentlig, skyddas av RLS)
-const CLOUD_TABLE="app_state";
-const CLOUD_KEY="gymnasieschema";
-let _pushTimer=null,_polling=false,_pollStarted=false;
-
-function persist(item){ save(); }   // save() sköter både lokal lagring och molnsynk
-
-// Effektiva uppgifter: inställningar i appen har företräde, annars inbyggda defaults.
-function supaRestUrl(){
-  let u=((state.settings&&state.settings.supaUrl)||SUPA_URL_DEFAULT||'').trim();
-  if(!u)return '';
-  u=u.replace(/\/+$/,'');
-  if(!/\/rest\/v1$/.test(u))u+='/rest/v1';
-  return u;
-}
-function supaKey(){return ((state.settings&&state.settings.supaKey)||SUPA_KEY_DEFAULT||'').trim();}
-function cloudEnabled(){return /^https?:\/\//.test(supaRestUrl()) && supaKey().length>20;}
-
-function cloudHeaders(extra){const k=supaKey();return Object.assign({apikey:k,Authorization:'Bearer '+k,'Content-Type':'application/json'},extra||{});}
-// data som delas i molnet (currentUser/tab hålls lokalt per enhet)
-function cloudData(){return {persons:state.persons,items:state.items,history:state.history,subscriptions:state.subscriptions,
-  settings:{dayStart:state.settings.dayStart,dayEnd:state.settings.dayEnd,showWeekend:state.settings.showWeekend,renamedDefaults:state.settings.renamedDefaults,feedProxy:state.settings.feedProxy},
-  updatedAt:state.updatedAt,app:'gymnasieschema'};}
+/* ============================================================ MOLNSYNK (Supabase) ============================================================ */
+const SUPA_URL="https://hlognhxcmuukhxsthibn.supabase.co";
+const SUPA_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsb2duaHhjbXV1a2h4c3RoaWJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2NDY2MjksImV4cCI6MjEwMjIyMjYyOX0.4UCoQjYkoEf6Bt46Dxf2FA6q8wKPnTXX19rvBFVbWRE";
+const CLOUD_TABLE="app_state";const CLOUD_KEY="gymnasieschema";
+let _pushTimer=null,_pollStarted=false,_cloudStarted=false;
+function supaRestUrl(){return SUPA_URL.replace(/\/+$/,'')+'/rest/v1';}
+function cloudEnabled(){return /^https?:\/\//.test(SUPA_URL)&&SUPA_KEY.length>20;}
+function cloudHeaders(extra){return Object.assign({apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY,'Content-Type':'application/json'},extra||{});}
+function cloudData(){return {persons:state.persons,items:state.items,history:state.history,batches:state.batches,subscriptions:state.subscriptions,settings:state.settings,updatedAt:state.updatedAt,app:'gymnasieschema',v:2};}
 function applyCloud(data){
   if(!data)return;
   if(Array.isArray(data.persons))state.persons=data.persons;
   if(Array.isArray(data.items))state.items=data.items;
   if(Array.isArray(data.history))state.history=data.history;
+  if(Array.isArray(data.batches))state.batches=data.batches;
   if(Array.isArray(data.subscriptions))state.subscriptions=data.subscriptions;
-  if(data.settings)Object.assign(state.settings,data.settings);
+  if(data.settings){const d=defaultSettings();state.settings=Object.assign({},d,data.settings);state.settings.brand=Object.assign({},d.brand,data.settings.brand||{});}
   state.updatedAt=data.updatedAt||Date.now();
-  if(!state.currentUser||!state.persons.find(p=>p.id===state.currentUser))state.currentUser=(state.persons[0]||{}).id;
-  saveLocal();
+  normalizePersons();normalizeItems();
+  if(session.userId&&!state.persons.find(p=>p.id===session.userId)){session.userId=null;session.master=false;}
+  saveLocal();refreshLockIfOpen();
 }
-async function cloudGet(){
-  const base=supaRestUrl();
-  const r=await fetch(`${base}/${CLOUD_TABLE}?key=eq.${encodeURIComponent(CLOUD_KEY)}&select=data`,{headers:cloudHeaders()});
-  if(!r.ok){cloudLastError=`GET HTTP ${r.status}`;throw new Error(cloudLastError);}
-  const rows=await r.json();
-  return (Array.isArray(rows)&&rows.length)?rows[0].data:null;
-}
-// PATCH befintlig rad; POST om ingen fanns (kräver ingen unik constraint på key)
-async function cloudPut(){
-  state.updatedAt=Date.now();
-  const data=cloudData();const base=supaRestUrl();
-  let r;
-  try{ r=await fetch(`${base}/${CLOUD_TABLE}?key=eq.${encodeURIComponent(CLOUD_KEY)}`,{
-    method:'PATCH',headers:cloudHeaders({Prefer:'return=representation'}),body:JSON.stringify({data})}); }
-  catch(e){cloudLastError='Nätverksfel (PATCH): '+e.message;throw e;}
-  if(!r.ok){cloudLastError=`PATCH HTTP ${r.status} – ${(await r.text().catch(()=>'')).slice(0,140)}`;throw new Error(cloudLastError);}
-  let rows=[];try{rows=await r.json();}catch(e){}
-  if(Array.isArray(rows)&&rows.length){cloudLastError='';return;}
-  const r2=await fetch(`${base}/${CLOUD_TABLE}`,{method:'POST',headers:cloudHeaders({Prefer:'return=minimal'}),body:JSON.stringify({key:CLOUD_KEY,data})});
-  if(!r2.ok){cloudLastError=`POST HTTP ${r2.status} – ${(await r2.text().catch(()=>'')).slice(0,140)}`;throw new Error(cloudLastError);}
-  cloudLastError='';
-}
-function cloudSchedulePush(){
-  if(!cloudEnabled()||!_booted)return;
-  clearTimeout(_pushTimer);
-  _pushTimer=setTimeout(async()=>{
-    cloudSetStatus('saving');
-    try{await cloudPut();cloudLastSync=Date.now();cloudSetStatus('ok');}
-    catch(e){cloudSetStatus('offline');}
-  },800);
-}
-async function cloudPull(rerender){
-  if(!cloudEnabled())return false;
-  const data=await cloudGet();
-  if(data&&(data.updatedAt||0)>(state.updatedAt||0)){
-    applyCloud(data);
-    if(rerender&&!document.querySelector('.overlay.show'))render();
-    cloudLastSync=Date.now();
-    return true;
-  }
-  return false;
-}
-async function cloudInit(){
-  if(!cloudEnabled()){cloudSetStatus('off');return;}
-  cloudSetStatus('connecting');
-  try{
-    const data=await cloudGet();
-    if(data&&(data.updatedAt||0)>=(state.updatedAt||0)){applyCloud(data);render();}
-    else{await cloudPut();}   // molnet tomt eller äldre – lägg upp vår version
-    cloudLastSync=Date.now();cloudSetStatus('ok');
-    cloudStartPolling();
-  }catch(e){cloudSetStatus('offline');setTimeout(cloudInit,8000);}
-}
-function cloudStartPolling(){
-  if(_pollStarted)return;_pollStarted=true;
-  setInterval(async()=>{
-    if(!cloudEnabled()||cloudStatus==='saving')return;
-    if(document.querySelector('.overlay.show'))return;   // stör inte redigering/import
-    const ae=document.activeElement,tag=ae&&ae.tagName;
-    if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
-    try{const ch=await cloudPull(true);if(cloudStatus!=='ok')cloudSetStatus('ok');if(ch)cloudLastSync=Date.now();}
-    catch(e){cloudSetStatus('offline');}
-  },12000);
-}
-// anropas när användaren sparar/ändrar molninställningar
-function cloudReconnect(){ if(cloudEnabled()){cloudInit();} else {cloudSetStatus('off');} }
-async function cloudForcePush(){if(!cloudEnabled()){toast('Ange projekt-URL och anon-nyckel först');return;}cloudSetStatus('saving');try{await cloudPut();cloudLastSync=Date.now();cloudSetStatus('ok');toast('Sparat till molnet');}catch(e){cloudSetStatus('offline');toast('Kunde inte spara: '+(cloudLastError||e.message));}}
-async function cloudForcePull(){if(!cloudEnabled()){toast('Ange projekt-URL och anon-nyckel först');return;}cloudSetStatus('connecting');try{const data=await cloudGet();if(data){applyCloud(data);render();}cloudLastSync=Date.now();cloudSetStatus('ok');toast('Hämtat från molnet');}catch(e){cloudSetStatus('offline');toast('Kunde inte hämta: '+(cloudLastError||e.message));}}
-function cloudSetStatus(s){cloudStatus=s;connState=(s==='ok'?'on':s==='offline'?'err':'local');renderConn();const st=$('#supaStatus');if(st)st.textContent=cloudStatusText();}
-function cloudStatusText(){
-  const map={off:'Molnsynk av (lokal lagring – ange projekt under Inställningar)',connecting:'Ansluter till molnet…',ok:'✓ Ansluten till molnet – synkas automatiskt',saving:'Sparar till molnet…',offline:'⚠ Offline – använder lokal lagring (försöker igen)'};
-  return (map[cloudStatus]||'')+(cloudLastSync?` · senast ${new Date(cloudLastSync).toLocaleTimeString('sv-SE')}`:'')+(cloudLastError?` · ${cloudLastError}`:'');
-}
-const SQL_SCHEMA=`-- Gymnasieschema – eget Supabase-projekt
--- Kör i Supabase SQL Editor (Dashboard -> SQL Editor -> New query).
+async function cloudGet(){const base=supaRestUrl();const r=await fetch(`${base}/${CLOUD_TABLE}?key=eq.${encodeURIComponent(CLOUD_KEY)}&select=data`,{headers:cloudHeaders()});if(!r.ok){cloudLastError=`GET HTTP ${r.status}`;throw new Error(cloudLastError);}const rows=await r.json();return (Array.isArray(rows)&&rows.length)?rows[0].data:null;}
+async function cloudPut(){state.updatedAt=Date.now();const data=cloudData();const base=supaRestUrl();let r;try{r=await fetch(`${base}/${CLOUD_TABLE}?key=eq.${encodeURIComponent(CLOUD_KEY)}`,{method:'PATCH',headers:cloudHeaders({Prefer:'return=representation'}),body:JSON.stringify({data})});}catch(e){cloudLastError='Nätverksfel (PATCH): '+e.message;throw e;}if(!r.ok){cloudLastError=`PATCH HTTP ${r.status} – ${(await r.text().catch(()=>'')).slice(0,140)}`;throw new Error(cloudLastError);}let rows=[];try{rows=await r.json();}catch(e){}if(Array.isArray(rows)&&rows.length){cloudLastError='';return;}const r2=await fetch(`${base}/${CLOUD_TABLE}`,{method:'POST',headers:cloudHeaders({Prefer:'return=minimal'}),body:JSON.stringify({key:CLOUD_KEY,data})});if(!r2.ok){cloudLastError=`POST HTTP ${r2.status} – ${(await r2.text().catch(()=>'')).slice(0,140)}`;throw new Error(cloudLastError);}cloudLastError='';}
+function cloudSchedulePush(){if(!cloudEnabled()||!_booted)return;clearTimeout(_pushTimer);_pushTimer=setTimeout(async()=>{cloudSetStatus('saving');try{await cloudPut();cloudLastSync=Date.now();cloudSetStatus('ok');}catch(e){cloudSetStatus('offline');}},800);}
+async function cloudPull(rerender){if(!cloudEnabled())return false;const data=await cloudGet();if(data&&(data.updatedAt||0)>(state.updatedAt||0)){applyCloud(data);if(rerender&&!document.querySelector('.overlay.show'))render();cloudLastSync=Date.now();return true;}return false;}
+async function cloudInit(){if(!cloudEnabled()){cloudSetStatus('off');return;}cloudSetStatus('connecting');try{const data=await cloudGet();if(data&&(data.updatedAt||0)>=(state.updatedAt||0)){applyCloud(data);if(!document.querySelector('#lockOverlay.show'))render();else refreshLockIfOpen();}else{await cloudPut();}cloudLastSync=Date.now();cloudSetStatus('ok');cloudStartPolling();}catch(e){cloudSetStatus('offline');setTimeout(cloudInit,8000);}}
+function cloudStartPolling(){if(_pollStarted)return;_pollStarted=true;setInterval(async()=>{if(!cloudEnabled()||cloudStatus==='saving')return;if(document.querySelector('.overlay.show'))return;const ae=document.activeElement,tag=ae&&ae.tagName;if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;try{const ch=await cloudPull(true);if(cloudStatus!=='ok')cloudSetStatus('ok');if(ch)cloudLastSync=Date.now();}catch(e){cloudSetStatus('offline');}},12000);}
+async function cloudForcePush(){if(!cloudEnabled())return;cloudSetStatus('saving');try{await cloudPut();cloudLastSync=Date.now();cloudSetStatus('ok');toast('Sparat till molnet');render();}catch(e){cloudSetStatus('offline');toast('Kunde inte spara: '+(cloudLastError||e.message));}}
+async function cloudForcePull(){if(!cloudEnabled())return;cloudSetStatus('connecting');try{const data=await cloudGet();if(data){applyCloud(data);render();}cloudLastSync=Date.now();cloudSetStatus('ok');toast('Hämtat från molnet');}catch(e){cloudSetStatus('offline');toast('Kunde inte hämta: '+(cloudLastError||e.message));}}
+function cloudSetStatus(s){cloudStatus=s;connState=(s==='ok'?'on':s==='offline'?'err':'local');renderConn();}
+function cloudStatusText(){const map={off:'Molnsynk av',connecting:'Ansluter till molnet…',ok:'✓ Ansluten – synkas automatiskt',saving:'Sparar till molnet…',offline:'⚠ Offline – lokal lagring (försöker igen)'};return (map[cloudStatus]||'')+(cloudLastSync?` · senast ${new Date(cloudLastSync).toLocaleTimeString('sv-SE')}`:'')+(cloudLastError?` · ${cloudLastError}`:'');}
+const SQL_SCHEMA=`-- Gymnasieschema – Supabase
 create table if not exists app_state (
-  key  text primary key,
+  key text primary key,
   data jsonb,
   updated_at timestamptz default now()
 );
 alter table app_state enable row level security;
-create policy "anon all app_state" on app_state for all using (true) with check (true);
--- Klistra sedan in Project URL och anon public key i appen under
--- Inställningar -> Molnsynk. Schemat lagras på raden key = 'gymnasieschema'.`;
-function showSchema(){
-  $('#importOverlay').querySelector('h2').textContent='Supabase SQL-schema (eget projekt)';
-  const b=$('#importBody');b.innerHTML='';
-  b.append(el('p',{class:'muted',style:'margin-top:0'},'Skapa ett eget projekt på supabase.com, öppna SQL Editor och kör detta. Klistra sedan in Project URL och anon key under Inställningar → Molnsynk.'),
-    el('div',{class:'code'},SQL_SCHEMA));
-  const f=$('#importFooter');f.innerHTML='';
-  f.append(el('button',{class:'btn subtle',onclick:()=>{navigator.clipboard.writeText(SQL_SCHEMA).then(()=>toast('SQL kopierad'));}},'Kopiera SQL'),
-    el('button',{class:'btn',onclick:closeImport},'Stäng'));
-  $('#importOverlay').classList.add('show');
-}
+create policy "anon all app_state" on app_state for all using (true) with check (true);`;
+function showSchema(){$('#importOverlay').querySelector('h2').textContent='Supabase SQL-schema';const b=$('#importBody');b.innerHTML='';b.append(el('p',{class:'muted',style:'margin-top:0'},'Detta schema körs i Supabase SQL Editor. Rekommenderat: ersätt policyn med striktare RLS.'),el('div',{class:'code'},SQL_SCHEMA));const f=$('#importFooter');f.innerHTML='';f.append(el('button',{class:'btn subtle',onclick:()=>{navigator.clipboard.writeText(SQL_SCHEMA).then(()=>toast('SQL kopierad'));}},'Kopiera SQL'),el('button',{class:'btn',onclick:closeImport},'Stäng'));$('#importOverlay').classList.add('show');}
 
 /* ---------- toast ---------- */
 let toastT=null;
-function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200);}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2400);}
 
-/* ============================================================
-   BOOT
-   ============================================================ */
-document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>{state.tab=b.dataset.tab;save();render();}));
+/* ============================================================ LOGIN / LÅS ============================================================ */
+let _lockUser=null;
+function isLoggedIn(){return session.master || (session.userId && state.persons.find(p=>p.id===session.userId));}
+function refreshLockIfOpen(){if($('#lockOverlay').classList.contains('show'))showLock();}
+function showLock(){
+  _lockUser=null;
+  const ov=$('#lockOverlay');const b=$('#lockBody');b.innerHTML='';
+  const t=effectiveTheme();
+  const logo=el('div',{class:'lock-logo'});if((state.settings.brand||{}).logoImg)logo.appendChild(el('img',{src:state.settings.brand.logoImg}));else logo.textContent=(state.settings.brand||{}).logo||'GS';
+  b.append(logo,el('h2',{},'Gymnasieschema'),el('p',{class:'muted'},'Välj användare för att logga in'));
+  const grid=el('div',{class:'lock-users'});
+  state.persons.forEach(p=>grid.appendChild(el('button',{class:'lock-user',onclick:()=>lockPick(p)},[
+    el('span',{class:'lock-ava',style:`background:${p.color}`},p.icon||initial(p.name)),
+    el('span',{style:'flex:1;text-align:left'},[el('div',{},p.name),el('div',{class:'muted',style:'font-size:11px;font-weight:400'},p.pin?'🔒 PIN krävs':'öppen')])])));
+  b.append(grid);
+  b.append(el('div',{id:'lockPin'}));
+  const mi=el('input',{class:'f pininput',id:'lockMaster',type:'password',inputmode:'numeric',maxlength:'6',placeholder:'••••••',style:'width:100%'});
+  const mbtn=el('button',{class:'btn',style:'width:100%;margin-top:8px;justify-content:center',onclick:()=>{if(mi.value.trim()===MASTER_CODE){session={userId:(state.persons[0]||{}).id||null,master:true};finishLogin();}else toast('Fel masterkod');}},'Logga in som administratör');
+  b.append(el('div',{class:'field',style:'margin-top:18px;border-top:1px solid var(--line);padding-top:14px'},[el('label',{},'Masterkod (administratör – åtkomst till alla)'),mi,mbtn]));
+  ov.classList.add('show');
+}
+function lockPick(p){
+  _lockUser=p;const pin=$('#lockPin');pin.innerHTML='';
+  if(!p.pin){session={userId:p.id,master:false};finishLogin();return;}
+  const inp=el('input',{class:'f pininput',id:'lockPinInp',type:'password',inputmode:'numeric',maxlength:'4',placeholder:'••••',style:'width:100%',
+    oninput:e=>{if(e.target.value.length===4)tryPin();}});
+  function tryPin(){if(($('#lockPinInp').value||'')===p.pin){session={userId:p.id,master:false};finishLogin();}else{toast('Fel PIN');$('#lockPinInp').value='';}}
+  pin.append(el('div',{class:'field pinpad',style:'margin-top:14px'},[el('label',{},`PIN för ${p.name}`),inp,
+    el('button',{class:'btn',style:'width:100%;margin-top:8px;justify-content:center',onclick:tryPin},'Logga in')]));
+  setTimeout(()=>{const x=$('#lockPinInp');if(x)x.focus();},40);
+}
+function finishLogin(){
+  if(session.master)ui.createAs=(state.persons[0]||{}).id;
+  saveAuth();$('#lockOverlay').classList.remove('show');applyTheme();render();startCloudOnce();
+  toast(session.master?'Inloggad som administratör':'Inloggad som '+personName(session.userId));
+}
+function logout(){session={userId:null,master:false};try{localStorage.removeItem(LS_AUTH);}catch(e){}showLock();}
+function startCloudOnce(){if(_cloudStarted)return;_cloudStarted=true;cloudInit();if(state.subscriptions&&state.subscriptions.length)setTimeout(()=>refreshAllSubscriptions(true).then(()=>{if(ui.tab==='schedule'||ui.tab==='list')render();}),1500);startFeedAutoRefresh();}
+
+/* ============================================================ BOOT ============================================================ */
+document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>{ui.tab=b.dataset.tab;saveUI();render();}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeEditor();closePerson();closeImport();}});
-document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('mousedown',e=>{if(e.target===o){o.classList.remove('show');}}));
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('mousedown',e=>{if(e.target===o)o.classList.remove('show');}));
+$('#logoutBtn').addEventListener('click',logout);
 
-load();
+load();loadAuth();applyTheme();_booted=true;
 render();
-// molnsynk startar automatiskt (samma koppling som DalaroKM)
-_booted=true;
-cloudInit();
-// prenumerationer: uppdatera vid start och sedan periodiskt
-if(state.subscriptions && state.subscriptions.length){ setTimeout(()=>refreshAllSubscriptions(true).then(()=>{if(state.tab==='week'||state.tab==='list')render();}), 1500); }
-startFeedAutoRefresh();
+if(isLoggedIn()){startCloudOnce();}
+else{showLock();cloudInit();}   // cloudInit i bakgrunden fyller på användarlistan i låsvyn
 
-// expose for inline handlers
 window.openEditor=openEditor;window.closeEditor=closeEditor;window.saveFromEditor=saveFromEditor;window.deleteFromEditor=deleteFromEditor;
 window.openPerson=openPerson;window.closePerson=closePerson;window.savePerson=savePerson;window.deletePerson=deletePerson;
 window.openImport=openImport;window.closeImport=closeImport;window.openImageImport=openImageImport;
