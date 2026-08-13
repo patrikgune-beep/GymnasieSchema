@@ -843,8 +843,8 @@ function renderSubscriptionsCard(){
   // valfri CORS-proxy
   const proxyI=el('input',{class:'f',style:'width:100%;margin-top:10px',placeholder:'Valfri CORS-proxy, t.ex. https://corsproxy.io/?url=',value:state.settings.feedProxy||''});
   proxyI.addEventListener('change',()=>{state.settings.feedProxy=proxyI.value.trim();save();});
-  form.append(labelWrap('CORS-proxy (om länken blockeras av webbläsaren)',proxyI),
-    el('div',{class:'hint'},'Många iCal-feeds (bl.a. SchoolSoft) tillåter inte direkta anrop från webbläsaren (CORS). Fungerar inte ”Uppdatera nu” kan du ange en CORS-proxy här. Obs: länken innehåller ett hemligt token och skickas då via proxytjänsten.'));
+  form.append(labelWrap('Egen CORS-proxy (valfritt)',proxyI),
+    el('div',{class:'hint'},'Många iCal-feeds (bl.a. SchoolSoft) tillåter inte direkta anrop från webbläsaren (CORS). Appen provar därför automatiskt några publika CORS-proxyer om direktanropet blockeras – oftast räcker det. Vill du styra vilken proxy som används kan du ange en egen här; då används bara den. Obs: länken innehåller ett hemligt token som då passerar via proxytjänsten.'));
   c.appendChild(form);
   return c;
 }
@@ -1199,17 +1199,35 @@ function parseICS(text){
    ============================================================ */
 let _feedTimer=null;
 function normFeedUrl(u){return (u||'').trim().replace(/^webcal:\/\//i,'https://');}
-async function fetchFeedText(sub){
-  const proxy=(state.settings.feedProxy||'').trim();
-  const target=normFeedUrl(sub.url);
-  const url = proxy ? (proxy + encodeURIComponent(target)) : target;
-  let r;
-  try{ r=await fetch(url,{headers:{'Accept':'text/calendar, text/plain, */*'}}); }
-  catch(e){ throw new Error('Kunde inte nå länken (nätverk/CORS). Prova att ange en CORS-proxy nedan.'); }
-  if(!r.ok) throw new Error('HTTP '+r.status+(r.status===0?' (CORS?)':''));
+// Inbyggda publika CORS-proxyer som prövas automatiskt om direktanropet blockeras.
+const FEED_PROXIES=[
+  u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),
+  u=>'https://corsproxy.io/?url='+encodeURIComponent(u),
+  u=>'https://thingproxy.freeboard.io/fetch/'+u,
+];
+async function fetchCalendarFrom(url){
+  const r=await fetch(url,{headers:{'Accept':'text/calendar, text/plain, */*'}});
+  if(!r.ok) throw new Error('HTTP '+r.status);
   const txt=await r.text();
   if(!/BEGIN:VCALENDAR/i.test(txt)) throw new Error('Svaret ser inte ut som en iCal-feed (saknar VCALENDAR).');
   return txt;
+}
+async function fetchFeedText(sub){
+  const proxy=(state.settings.feedProxy||'').trim();
+  const target=normFeedUrl(sub.url);
+  // Egen proxy angiven? Använd enbart den.
+  if(proxy){
+    try{ return await fetchCalendarFrom(proxy+encodeURIComponent(target)); }
+    catch(e){ throw new Error('Kunde inte hämta via angiven CORS-proxy: '+(e.message||e)); }
+  }
+  // Annars: prova direkt först, fall sedan tillbaka på inbyggda CORS-proxyer.
+  const attempts=[target,...FEED_PROXIES.map(fn=>fn(target))];
+  let lastErr;
+  for(const u of attempts){
+    try{ return await fetchCalendarFrom(u); }
+    catch(e){ lastErr=e; }
+  }
+  throw new Error('Kunde inte nå länken (nätverk/CORS) – prövade även flera CORS-proxyer. Prova att ange en egen CORS-proxy nedan.'+(lastErr&&lastErr.message?' ('+lastErr.message+')':''));
 }
 // dagens/framtida poster från en viss prenumeration (passerade behålls)
 function feedFutureItems(subId){const t=todayStr();return state.items.filter(i=>i.source==='feed' && i.feedId===subId && i.date && i.date>=t);}
