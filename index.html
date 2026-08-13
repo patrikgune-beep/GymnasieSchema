@@ -1599,8 +1599,8 @@ function importJSON(e){
    Ange ditt EGNA projekts värden nedan (eller i appen under
    Inställningar → Molnsynk). Lämna tomt för att köra enbart lokalt.
    ============================================================ */
-const SUPA_URL_DEFAULT="";   // t.ex. "https://ditt-projekt.supabase.co" (eget projekt – INTE DalaroKM)
-const SUPA_KEY_DEFAULT="";   // anon public key för ditt egna projekt
+const SUPA_URL_DEFAULT="https://hlognhxcmuukhxsthibn.supabase.co";   // hårdkodat projekt – används om inget anges under Inställningar
+const SUPA_KEY_DEFAULT="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsb2duaHhjbXV1a2h4c3RoaWJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2NDY2MjksImV4cCI6MjEwMjIyMjYyOX0.4UCoQjYkoEf6Bt46Dxf2FA6q8wKPnTXX19rvBFVbWRE";   // anon public key (offentlig, skyddas av RLS)
 const CLOUD_TABLE="app_state";
 const CLOUD_KEY="gymnasieschema";
 let _pushTimer=null,_polling=false,_pollStarted=false;
