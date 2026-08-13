@@ -312,7 +312,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.0.1";
+const APP_VERSION="2.0.2";
 const APP_BUILD="2026-08-13";
 const MASTER_CODE="333900";
 
@@ -776,7 +776,7 @@ function renderTasks(main){
   tbl.appendChild(el('thead',{},el('tr',{},[th(''),th('Uppgift'),th('Ansvarig'),th('Deltagare'),th('Datum'),th('Tid'),th('')])));
   const tb=el('tbody');
   tasks.forEach(t=>{const tr=el('tr',{});const cb=el('input',{type:'checkbox'});cb.checked=!!t.done;
-    cb.onchange=()=>{if(!canEdit(t)){cb.checked=!cb.checked;toast('Du kan bara ändra dina egna uppgifter');return;}t.done=cb.checked;t.updatedAt=new Date().toISOString();logHistory('update',t,t.done?'markerad klar':'återöppnad');persist(t);renderMainOnly();};
+    cb.onchange=()=>{if(!canEdit(t)){cb.checked=!cb.checked;toast('Du kan bara ändra dina egna uppgifter');return;}t.done=cb.checked;t.updatedAt=new Date().toISOString();if(t.source==='manual')t.pendingSync=true;logHistory('update',t,t.done?'markerad klar':'återöppnad');persist(t);renderMainOnly();};
     const parts=(t.participants||[]).filter(pid=>pid!==t.personId);
     tr.append(td(cb),
       td(el('div',{},[el('strong',{class:t.done?'muted':''},t.title),t.description?el('div',{class:'muted',style:'font-size:12px'},t.description):null,t.shared?el('span',{class:'tag shared',style:'margin-top:4px'},'gemensam'):null])),
@@ -976,7 +976,7 @@ function recurControls(idPrefix,baseDateStr,defMode){
 }
 function createItems(data,mode,until){
   const dates=expandRecurrence(data.date,mode,until);const created=[];
-  dates.forEach(dt=>{const it=Object.assign({id:uid(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),source:data.source||'manual',participants:[],shared:false,createdBy:session.userId||null},data,{date:dt});state.items.push(it);created.push(it);});
+  dates.forEach(dt=>{const it=Object.assign({id:uid(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),source:data.source||'manual',participants:[],shared:false,createdBy:session.userId||null},data,{date:dt,pendingSync:true});state.items.push(it);created.push(it);});
   if(created.length===1)logHistory('create',created[0]);
   else logHistory('create',null,`${data.title}: ${created.length} tillfällen (${recurLabel(mode)})`);
   save();return created;
@@ -1058,7 +1058,7 @@ function saveFromEditor(){
   if(data.start&&data.end&&toMin(data.end)<=toMin(data.start))data.end=fromMin(toMin(data.start)+45);
   if(editing){
     if(!canEdit(editing)){toast('Du kan bara ändra dina egna poster');return;}
-    Object.assign(editing,data);editing.updatedAt=new Date().toISOString();logHistory('update',editing);persist(editing);
+    Object.assign(editing,data);editing.updatedAt=new Date().toISOString();if(editing.source==='manual')editing.pendingSync=true;logHistory('update',editing);persist(editing);
   }else{
     const mode=$('#f_recur')?$('#f_recur').value:'none';
     const until=($('#f_recur_until')&&mode!=='none')?$('#f_recur_until').value:null;
@@ -1361,7 +1361,8 @@ let _pushTimer=null,_pollStarted=false,_cloudStarted=false;
 function supaRestUrl(){return SUPA_URL.replace(/\/+$/,'')+'/rest/v1';}
 function cloudEnabled(){return /^https?:\/\//.test(SUPA_URL)&&SUPA_KEY.length>20;}
 function cloudHeaders(extra){return Object.assign({apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY,'Content-Type':'application/json'},extra||{});}
-function cloudData(){return {persons:state.persons,items:state.items,history:state.history,batches:state.batches,subscriptions:state.subscriptions,settings:state.settings,updatedAt:state.updatedAt,app:'gymnasieschema',v:2};}
+function cloudData(){return {persons:state.persons,items:state.items.map(i=>{const j=Object.assign({},i);delete j.pendingSync;return j;}),history:state.history,batches:state.batches,subscriptions:state.subscriptions,settings:state.settings,updatedAt:state.updatedAt,app:'gymnasieschema',v:2};}
+function clearPendingSync(){let ch=false;(state.items||[]).forEach(i=>{if(i.pendingSync){delete i.pendingSync;ch=true;}});if(ch)saveLocal();}
 function applyCloud(data){
   if(!data)return;
   if(Array.isArray(data.persons))state.persons=data.persons;
@@ -1376,26 +1377,37 @@ function applyCloud(data){
   saveLocal();refreshLockIfOpen();
 }
 async function cloudGet(){const base=supaRestUrl();const r=await fetch(`${base}/${CLOUD_TABLE}?key=eq.${encodeURIComponent(CLOUD_KEY)}&select=data`,{headers:cloudHeaders()});if(!r.ok){cloudLastError=`GET HTTP ${r.status}`;throw new Error(cloudLastError);}const rows=await r.json();return (Array.isArray(rows)&&rows.length)?rows[0].data:null;}
-async function cloudPut(){state.updatedAt=Date.now();const data=cloudData();const base=supaRestUrl();let r;try{r=await fetch(`${base}/${CLOUD_TABLE}?key=eq.${encodeURIComponent(CLOUD_KEY)}`,{method:'PATCH',headers:cloudHeaders({Prefer:'return=representation'}),body:JSON.stringify({data})});}catch(e){cloudLastError='Nätverksfel (PATCH): '+e.message;throw e;}if(!r.ok){cloudLastError=`PATCH HTTP ${r.status} – ${(await r.text().catch(()=>'')).slice(0,140)}`;throw new Error(cloudLastError);}let rows=[];try{rows=await r.json();}catch(e){}if(Array.isArray(rows)&&rows.length){cloudLastError='';return;}const r2=await fetch(`${base}/${CLOUD_TABLE}`,{method:'POST',headers:cloudHeaders({Prefer:'return=minimal'}),body:JSON.stringify({key:CLOUD_KEY,data})});if(!r2.ok){cloudLastError=`POST HTTP ${r2.status} – ${(await r2.text().catch(()=>'')).slice(0,140)}`;throw new Error(cloudLastError);}cloudLastError='';}
+async function cloudPut(){state.updatedAt=Date.now();const data=cloudData();const base=supaRestUrl();let r;try{r=await fetch(`${base}/${CLOUD_TABLE}?key=eq.${encodeURIComponent(CLOUD_KEY)}`,{method:'PATCH',headers:cloudHeaders({Prefer:'return=representation'}),body:JSON.stringify({data})});}catch(e){cloudLastError='Nätverksfel (PATCH): '+e.message;throw e;}if(!r.ok){cloudLastError=`PATCH HTTP ${r.status} – ${(await r.text().catch(()=>'')).slice(0,140)}`;throw new Error(cloudLastError);}let rows=[];try{rows=await r.json();}catch(e){}if(Array.isArray(rows)&&rows.length){cloudLastError='';clearPendingSync();return;}const r2=await fetch(`${base}/${CLOUD_TABLE}`,{method:'POST',headers:cloudHeaders({Prefer:'return=minimal'}),body:JSON.stringify({key:CLOUD_KEY,data})});if(!r2.ok){cloudLastError=`POST HTTP ${r2.status} – ${(await r2.text().catch(()=>'')).slice(0,140)}`;throw new Error(cloudLastError);}cloudLastError='';clearPendingSync();}
 function cloudSchedulePush(){if(!cloudEnabled()||!_booted)return;clearTimeout(_pushTimer);_pushTimer=setTimeout(async()=>{cloudSetStatus('saving');try{await cloudPut();cloudLastSync=Date.now();cloudSetStatus('ok');}catch(e){cloudSetStatus('offline');}},800);}
 async function cloudPull(rerender){if(!cloudEnabled())return false;const data=await cloudGet();if(data&&(data.updatedAt||0)>(state.updatedAt||0)){applyCloud(data);if(rerender&&!document.querySelector('.overlay.show'))render();cloudLastSync=Date.now();return true;}return false;}
 function cloudHasData(data){return !!(data && ((Array.isArray(data.persons)&&data.persons.length)||(Array.isArray(data.items)&&data.items.length)||(Array.isArray(data.subscriptions)&&data.subscriptions.length)||(Array.isArray(data.batches)&&data.batches.length)));}
+// Behåll lokalt skapade manuella poster som ännu inte hunnit synkas. De mergas
+// in i molnkopian (och pushas upp) så de blir en del av molndatat – utan att
+// återuppväcka poster som raderats på en annan enhet (endast poster skapade
+// efter molnets senaste tidsstämpel tas med).
+function mergeUnsyncedManual(cloudData){
+  if(!cloudData||!Array.isArray(cloudData.items))return 0;
+  const cloudIds=new Set(cloudData.items.map(i=>i&&i.id));
+  const cloudTs=cloudData.updatedAt||0;
+  const ms=v=>{const t=Date.parse(v||'');return isNaN(t)?0:t;};
+  const add=(state.items||[]).filter(i=>i && i.source==='manual' && !cloudIds.has(i.id) &&
+    (i.pendingSync===true || (i.pendingSync===undefined && (ms(i.createdAt)>cloudTs || ms(i.updatedAt)>cloudTs))));
+  if(add.length)cloudData.items=cloudData.items.concat(add.map(i=>Object.assign({},i)));
+  return add.length;
+}
 async function cloudInit(){
   if(!cloudEnabled()){cloudSetStatus('off');return;}
   cloudSetStatus('connecting');
   try{
     const data=await cloudGet();
-    const cloudHas=cloudHasData(data);
-    if(cloudHas){
-      // Molnet har riktig data. Hämta ner den om enheten är ny/rensad, om vårt
-      // lokala läge är tomt seed, eller om molnet är nyare/lika. Skriv bara upp
-      // om vår lokala data verkligen är nyare (offline-ändringar).
-      if(freshBoot || isSeedEmpty() || (data.updatedAt||0)>=(state.updatedAt||0)){
-        applyCloud(data);
-        if(!document.querySelector('#lockOverlay.show'))render();else refreshLockIfOpen();
-      }else{
-        await cloudPut();
-      }
+    if(cloudHasData(data)){
+      // Molnet trumfar ALLTID lokalt vid inladdning (ny/rensad enhet får
+      // alltid molndatan). Undantag: lokalt skapade manuella poster som ännu
+      // inte synkats behålls och blir en del av molnet.
+      const merged=mergeUnsyncedManual(data);
+      applyCloud(data);
+      if(!document.querySelector('#lockOverlay.show'))render();else refreshLockIfOpen();
+      if(merged>0){try{await cloudPut();}catch(e){}}   // de mergade posterna blir del av molnet
     }else{
       // Molnet saknar data. Lägg bara upp om vi faktiskt har något att spara –
       // aldrig ett tomt seed (då skulle vi skapa en tom rad i onödan).
