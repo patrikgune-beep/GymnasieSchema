@@ -312,7 +312,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.0.0";
+const APP_VERSION="2.0.1";
 const APP_BUILD="2026-08-13";
 const MASTER_CODE="333900";
 
@@ -376,6 +376,7 @@ let session = { userId:null, master:false };
 let connState='local';
 let cloudStatus='off', cloudLastSync=0, cloudLastError='';
 let _booted=false;
+let freshBoot=false;   // true om localStorage var tomt vid start (ny/rensad enhet)
 
 function currentPerson(){return state.persons.find(p=>p.id===session.userId)||null;}
 function personName(id){const p=state.persons.find(x=>x.id===id);return p?p.name:'—';}
@@ -431,7 +432,14 @@ function saveAuth(){try{localStorage.setItem(LS_AUTH,JSON.stringify({userId:sess
 function seed(){
   const names=['Mikkel','Patrik','Katarina'];
   state.persons=names.map((n,i)=>({id:uid(),name:n,color:PALETTE[i],icon:EMOJIS[i],pin:'',theme:null,visible:true}));
-  save();
+  // VIKTIGT: bumpa INTE updatedAt här. Ett tomt seed får aldrig se "nyare" ut än
+  // molnet, annars skulle en rensad enhet skriva över molndatan med tomt schema.
+  saveLocal();
+}
+// tomt/orört starttillstånd? (används för att aldrig skriva över riktig molndata)
+function isSeedEmpty(){
+  return (!state.items||!state.items.length) && (!state.subscriptions||!state.subscriptions.length)
+    && (!state.batches||!state.batches.length) && (!state.history||!state.history.length);
 }
 function normalizePersons(){
   (state.persons||[]).forEach(p=>{if(!('icon'in p))p.icon='';if(!('pin'in p))p.pin='';if(!('theme'in p))p.theme=null;if(!('visible'in p))p.visible=true;});
@@ -440,7 +448,9 @@ function normalizeItems(){
   (state.items||[]).forEach(i=>{if(!Array.isArray(i.participants))i.participants=[];if(!('shared'in i))i.shared=false;if(!('createdBy'in i))i.createdBy=i.personId||null;});
 }
 function load(){
-  try{const raw=localStorage.getItem(LS_KEY);if(raw){const p=JSON.parse(raw);Object.assign(state,p);}}catch(e){console.warn('load fail',e);}
+  let raw=null;
+  try{raw=localStorage.getItem(LS_KEY);if(raw){const p=JSON.parse(raw);Object.assign(state,p);}}catch(e){console.warn('load fail',e);}
+  freshBoot = !raw;
   if(!state.settings)state.settings=defaultSettings();
   else{const d=defaultSettings();state.settings=Object.assign({},d,state.settings);state.settings.brand=Object.assign({},d.brand,state.settings.brand||{});}
   if(typeof state.updatedAt!=='number')state.updatedAt=0;
@@ -928,9 +938,11 @@ function renderSettings(main){
   vc.append(infoRow('Supabase-säkerhet','Anon-nyckel är hårdkodad i index.html (offentlig, skyddas av RLS). Project URL och nyckel ställs inte längre in i appen.'));
   vc.append(infoRow('GitHub','patrikgune-beep/GymnasieSchema · gren main · publiceras som statisk index.html'));
   vc.append(el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px'},[
+    el('button',{class:'btn sm',onclick:()=>cloudTest()},'⚡ Testa anslutning'),
     el('button',{class:'btn subtle sm',onclick:()=>cloudForcePull()},'⤓ Hämta från molnet nu'),
     el('button',{class:'btn subtle sm',onclick:()=>cloudForcePush()},'⤒ Spara till molnet nu'),
     el('button',{class:'btn subtle sm',onclick:showSchema},'Visa SQL-schema')]));
+  vc.append(el('p',{class:'hint',style:'margin-top:8px'},'All data (användare, poster, prenumerationer, inställningar, utseende och historik) sparas i molnet och skyddas mot att rensas när du tömmer webbläsarens data. Fungerar inte synken: klicka “Testa anslutning”.'));
   wrap.appendChild(vc);
 
   main.appendChild(wrap);
@@ -1367,10 +1379,54 @@ async function cloudGet(){const base=supaRestUrl();const r=await fetch(`${base}/
 async function cloudPut(){state.updatedAt=Date.now();const data=cloudData();const base=supaRestUrl();let r;try{r=await fetch(`${base}/${CLOUD_TABLE}?key=eq.${encodeURIComponent(CLOUD_KEY)}`,{method:'PATCH',headers:cloudHeaders({Prefer:'return=representation'}),body:JSON.stringify({data})});}catch(e){cloudLastError='Nätverksfel (PATCH): '+e.message;throw e;}if(!r.ok){cloudLastError=`PATCH HTTP ${r.status} – ${(await r.text().catch(()=>'')).slice(0,140)}`;throw new Error(cloudLastError);}let rows=[];try{rows=await r.json();}catch(e){}if(Array.isArray(rows)&&rows.length){cloudLastError='';return;}const r2=await fetch(`${base}/${CLOUD_TABLE}`,{method:'POST',headers:cloudHeaders({Prefer:'return=minimal'}),body:JSON.stringify({key:CLOUD_KEY,data})});if(!r2.ok){cloudLastError=`POST HTTP ${r2.status} – ${(await r2.text().catch(()=>'')).slice(0,140)}`;throw new Error(cloudLastError);}cloudLastError='';}
 function cloudSchedulePush(){if(!cloudEnabled()||!_booted)return;clearTimeout(_pushTimer);_pushTimer=setTimeout(async()=>{cloudSetStatus('saving');try{await cloudPut();cloudLastSync=Date.now();cloudSetStatus('ok');}catch(e){cloudSetStatus('offline');}},800);}
 async function cloudPull(rerender){if(!cloudEnabled())return false;const data=await cloudGet();if(data&&(data.updatedAt||0)>(state.updatedAt||0)){applyCloud(data);if(rerender&&!document.querySelector('.overlay.show'))render();cloudLastSync=Date.now();return true;}return false;}
-async function cloudInit(){if(!cloudEnabled()){cloudSetStatus('off');return;}cloudSetStatus('connecting');try{const data=await cloudGet();if(data&&(data.updatedAt||0)>=(state.updatedAt||0)){applyCloud(data);if(!document.querySelector('#lockOverlay.show'))render();else refreshLockIfOpen();}else{await cloudPut();}cloudLastSync=Date.now();cloudSetStatus('ok');cloudStartPolling();}catch(e){cloudSetStatus('offline');setTimeout(cloudInit,8000);}}
+function cloudHasData(data){return !!(data && ((Array.isArray(data.persons)&&data.persons.length)||(Array.isArray(data.items)&&data.items.length)||(Array.isArray(data.subscriptions)&&data.subscriptions.length)||(Array.isArray(data.batches)&&data.batches.length)));}
+async function cloudInit(){
+  if(!cloudEnabled()){cloudSetStatus('off');return;}
+  cloudSetStatus('connecting');
+  try{
+    const data=await cloudGet();
+    const cloudHas=cloudHasData(data);
+    if(cloudHas){
+      // Molnet har riktig data. Hämta ner den om enheten är ny/rensad, om vårt
+      // lokala läge är tomt seed, eller om molnet är nyare/lika. Skriv bara upp
+      // om vår lokala data verkligen är nyare (offline-ändringar).
+      if(freshBoot || isSeedEmpty() || (data.updatedAt||0)>=(state.updatedAt||0)){
+        applyCloud(data);
+        if(!document.querySelector('#lockOverlay.show'))render();else refreshLockIfOpen();
+      }else{
+        await cloudPut();
+      }
+    }else{
+      // Molnet saknar data. Lägg bara upp om vi faktiskt har något att spara –
+      // aldrig ett tomt seed (då skulle vi skapa en tom rad i onödan).
+      if(!isSeedEmpty())await cloudPut();
+    }
+    freshBoot=false;
+    cloudLastSync=Date.now();cloudSetStatus('ok');cloudStartPolling();
+  }catch(e){cloudSetStatus('offline');setTimeout(cloudInit,8000);}
+}
 function cloudStartPolling(){if(_pollStarted)return;_pollStarted=true;setInterval(async()=>{if(!cloudEnabled()||cloudStatus==='saving')return;if(document.querySelector('.overlay.show'))return;const ae=document.activeElement,tag=ae&&ae.tagName;if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;try{const ch=await cloudPull(true);if(cloudStatus!=='ok')cloudSetStatus('ok');if(ch)cloudLastSync=Date.now();}catch(e){cloudSetStatus('offline');}},12000);}
-async function cloudForcePush(){if(!cloudEnabled())return;cloudSetStatus('saving');try{await cloudPut();cloudLastSync=Date.now();cloudSetStatus('ok');toast('Sparat till molnet');render();}catch(e){cloudSetStatus('offline');toast('Kunde inte spara: '+(cloudLastError||e.message));}}
-async function cloudForcePull(){if(!cloudEnabled())return;cloudSetStatus('connecting');try{const data=await cloudGet();if(data){applyCloud(data);render();}cloudLastSync=Date.now();cloudSetStatus('ok');toast('Hämtat från molnet');}catch(e){cloudSetStatus('offline');toast('Kunde inte hämta: '+(cloudLastError||e.message));}}
+async function cloudForcePush(){if(!cloudEnabled()){alert('Molnsynk är inte konfigurerad.');return;}cloudSetStatus('saving');render();try{await cloudPut();cloudLastSync=Date.now();cloudSetStatus('ok');render();toast('✓ Sparat till molnet');}catch(e){cloudSetStatus('offline');render();alert('Kunde INTE spara till molnet:\n'+(cloudLastError||e.message||e)+'\n\nOfta beror det på att tabellen "app_state" saknas eller att RLS blockerar. Klicka "Testa anslutning" och ev. "Visa SQL-schema".');}}
+async function cloudForcePull(){if(!cloudEnabled()){alert('Molnsynk är inte konfigurerad.');return;}cloudSetStatus('connecting');render();try{const data=await cloudGet();if(cloudHasData(data)){applyCloud(data);render();toast('✓ Hämtat från molnet');}else{render();alert('Molnet innehåller ingen sparad data ännu (tom rad).\n\nOm du nyss rensade webbläsaren kan molndatan ha skrivits över tidigare. Lägg in dina uppgifter och de synkas nu automatiskt och skyddas mot framtida rensningar.');}cloudLastSync=Date.now();cloudSetStatus('ok');render();}catch(e){cloudSetStatus('offline');render();alert('Kunde INTE hämta från molnet:\n'+(cloudLastError||e.message||e)+'\n\nKlicka "Testa anslutning" för att se orsaken.');}}
+async function cloudTest(){
+  if(!cloudEnabled()){alert('Molnsynk är inte konfigurerad.');return;}
+  toast('Testar anslutning…');cloudSetStatus('connecting');render();
+  try{
+    const base=supaRestUrl();
+    const r=await fetch(`${base}/${CLOUD_TABLE}?key=eq.${encodeURIComponent(CLOUD_KEY)}&select=key`,{headers:cloudHeaders()});
+    const body=await r.text();
+    if(r.ok){
+      let rows=[];try{rows=JSON.parse(body);}catch(e){}
+      const has=Array.isArray(rows)&&rows.length;
+      cloudSetStatus('ok');render();
+      alert(`✓ Anslutning OK (HTTP ${r.status}).\nTabellen "app_state" finns och nyckeln är giltig.\nSparad rad för detta schema: ${has?'JA':'NEJ (ingen data ännu)'}.\n\n${has?'Din data ligger i molnet och hämtas automatiskt på alla enheter.':'Ingen data i molnet ännu – gör en ändring eller klicka "Spara till molnet nu".'}`);
+    }else{
+      cloudSetStatus('offline');render();
+      const missing=/relation|does not exist|42P01|Not Found|PGRST/i.test(body)||r.status===404;
+      alert(`⚠ Anslutningen misslyckades: HTTP ${r.status}\n\n${body.slice(0,300)}\n\n${missing?'Sannolik orsak: tabellen "app_state" saknas eller RLS blockerar anon. Klicka "Visa SQL-schema" och kör SQL:en i Supabase → SQL Editor. Sedan fungerar synken.':'Kontrollera Supabase-projektet och att RLS tillåter anon läsning/skrivning.'}`);
+    }
+  }catch(e){cloudSetStatus('offline');render();alert('Nätverksfel vid test:\n'+(e.message||e)+'\n\nKontrollera internetanslutningen och att Supabase-projektet är aktivt (inte pausat).');}
+}
 function cloudSetStatus(s){cloudStatus=s;connState=(s==='ok'?'on':s==='offline'?'err':'local');renderConn();}
 function cloudStatusText(){const map={off:'Molnsynk av',connecting:'Ansluter till molnet…',ok:'✓ Ansluten – synkas automatiskt',saving:'Sparar till molnet…',offline:'⚠ Offline – lokal lagring (försöker igen)'};return (map[cloudStatus]||'')+(cloudLastSync?` · senast ${new Date(cloudLastSync).toLocaleTimeString('sv-SE')}`:'')+(cloudLastError?` · ${cloudLastError}`:'');}
 const SQL_SCHEMA=`-- Gymnasieschema – Supabase
@@ -1434,8 +1490,8 @@ $('#logoutBtn').addEventListener('click',logout);
 
 load();loadAuth();applyTheme();_booted=true;
 render();
-if(isLoggedIn()){startCloudOnce();}
-else{showLock();cloudInit();}   // cloudInit i bakgrunden fyller på användarlistan i låsvyn
+if(!isLoggedIn())showLock();   // låsvyn visas ovanpå; cloudInit fyller på användarlistan
+startCloudOnce();              // molnsynk startar alltid (en gång), oavsett inloggning
 
 window.openEditor=openEditor;window.closeEditor=closeEditor;window.saveFromEditor=saveFromEditor;window.deleteFromEditor=deleteFromEditor;
 window.openPerson=openPerson;window.closePerson=closePerson;window.savePerson=savePerson;window.deletePerson=deletePerson;
