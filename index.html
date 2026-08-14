@@ -254,6 +254,7 @@
   <div class="who">
     <span class="me" id="whoMe"></span>
     <select id="whoSelect" title="Skapa poster som" style="display:none"></select>
+    <button class="icon-btn" id="viewOnlyBtn" title="Visningsläge (endast läsa)">👁</button>
     <button class="icon-btn" id="logoutBtn" title="Logga ut / byt användare">⎋</button>
     <span class="conn-dot" id="connDot" title="Lagring"></span>
   </div>
@@ -312,7 +313,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.0.2";
+const APP_VERSION="2.0.3";
 const APP_BUILD="2026-08-13";
 const MASTER_CODE="333900";
 
@@ -371,7 +372,7 @@ let state = {
 };
 // enhetslokal UI (synkas ej)
 let ui = { tab:'schedule', view:'week', selectedDate: todayStr(), monday: mondayOf(todayStr()),
-  monthAnchor: firstOfMonth(todayStr()), search:'', filterType:'all', filterManual:false };
+  monthAnchor: firstOfMonth(todayStr()), search:'', filterType:'all', filterManual:false, viewOnly:false };
 let session = { userId:null, master:false };
 let connState='local';
 let cloudStatus='off', cloudLastSync=0, cloudLastError='';
@@ -472,9 +473,34 @@ function logHistory(action,item,details){
     itemTitle:item?item.title:(details||''),by:who,details:details||''});
   if(state.history.length>3000)state.history.length=3000;
 }
-function logBatch(kind,label,count){
-  const b={id:uid(),ts:Date.now(),kind,label,count,by:session.master?'Master':personName(session.userId),byId:session.userId||null};
+// key: stabil nyckel för uppdateringar som ska ersätta varandra (t.ex. en
+// prenumeration -> 'feed:<subId>') så bara SENASTE uppdateringen behålls.
+// forId: vilken användare uppdateringen tillhör (för "per användare"-vy).
+function logBatch(kind,label,count,forId,key){
+  const who=session.master?'Master':personName(session.userId);
+  if(key){
+    const ex=state.batches.find(b=>b.key===key);
+    if(ex){ex.ts=Date.now();ex.count=count;ex.label=label;ex.by=who;ex.byId=session.userId||null;ex.forId=forId||ex.forId||null;ex.kind=kind;
+      state.batches=state.batches.filter(b=>b!==ex);state.batches.unshift(ex);return ex.id;}
+  }
+  const b={id:uid(),ts:Date.now(),kind,label,count,by:who,byId:session.userId||null,forId:forId||null,key:key||null};
   state.batches.unshift(b);if(state.batches.length>300)state.batches.length=300;return b.id;
+}
+// Kurerad lista för Historik: garanterar att varje användares SENASTE
+// import (CSV/ICS/bild) alltid syns, och fyller sedan på med övriga
+// uppdateringar upp till 20. Prenumerationer visas bara som senaste rad
+// (en per prenumeration, tack vare key-mekaniken i logBatch).
+function curatedBatches(limit){
+  limit=limit||20;
+  const all=state.batches.slice();
+  const importKinds=new Set(['csv','ics','image']);
+  const pinned=new Map();
+  all.forEach(b=>{if(importKinds.has(b.kind)){const k=(b.forId||'?')+':'+b.kind;if(!pinned.has(k))pinned.set(k,b);}});
+  const pinnedSet=new Set(pinned.values());
+  const out=[...pinnedSet];
+  for(const b of all){if(pinnedSet.has(b))continue;if(out.length>=limit)break;out.push(b);}
+  out.sort((a,b)=>b.ts-a.ts);
+  return out;
 }
 function deleteBatch(id){
   const b=state.batches.find(x=>x.id===id);if(!b)return;
@@ -540,6 +566,8 @@ function renderWho(){
   }else sel.style.display='none';
 }
 function renderConn(){const dot=$('#connDot');dot.className='conn-dot'+(connState==='on'?' on':connState==='err'?' err':'');dot.title=(typeof cloudStatusText==='function')?cloudStatusText():'Lokal lagring';}
+function updateViewOnlyBtn(){const b=$('#viewOnlyBtn');if(!b)return;b.textContent=ui.viewOnly?'✏️':'👁';b.title=ui.viewOnly?'Visningsläge PÅ – tryck för att redigera':'Visningsläge (endast läsa)';b.style.background=ui.viewOnly?'var(--accent)':'';b.style.color=ui.viewOnly?'#fff':'';document.body.classList.toggle('viewonly',ui.viewOnly);}
+function toggleViewOnly(){ui.viewOnly=!ui.viewOnly;saveUI();updateViewOnlyBtn();render();toast(ui.viewOnly?'Visningsläge på – endast läsning':'Visningsläge av – redigering på');}
 
 /* ---------- controls (sök/typ/manuell) ---------- */
 function controlsBar(){
@@ -551,8 +579,9 @@ function controlsBar(){
   const man=el('label',{class:'chk'});const mc=el('input',{type:'checkbox'});mc.checked=ui.filterManual;
   mc.onchange=()=>{ui.filterManual=mc.checked;saveUI();renderMainOnly();};
   man.append(mc,'Endast manuella');
-  const add=el('button',{class:'btn',onclick:()=>openEditor(null)},'＋ Ny post');
-  wrap.append(search,ft,man,el('div',{style:'flex:1'}),add);
+  wrap.append(search,ft,man,el('div',{style:'flex:1'}));
+  if(ui.viewOnly)wrap.append(el('span',{class:'chk',style:'background:#eff6ff;border-color:var(--accent);color:var(--accent);font-weight:600'},'👁 Visningsläge'));
+  else wrap.append(el('button',{class:'btn',onclick:()=>openEditor(null)},'＋ Ny post'));
   return wrap;
 }
 
@@ -609,10 +638,48 @@ function navBar(){
 /* ============================================================ SCHEMA (dag/vecka/månad) ============================================================ */
 function renderSchedule(main){
   main.append(controlsBar(),personChips(),navBar());
+  if(ui.viewOnly){renderAgenda(main);return;}
   if(ui.view==='day')renderDayView(main);
   else if(ui.view==='month')renderMonthView(main);
   else renderWeekView(main, ui.view==='workweek'?5:7);
   main.appendChild(el('p',{class:'hint',style:'margin-top:10px'},'Tips: dubbelklicka i schemat för att lägga till en post. Klicka på en post för att öppna/redigera.'));
+}
+
+/* Förenklad, touch-vänlig agendavy (endast visning – för iPhone m.fl.) */
+function agendaDates(){
+  if(ui.view==='day')return [ui.selectedDate];
+  if(ui.view==='month'){const start=parseDate(firstOfMonth(ui.monthAnchor));const y=start.getFullYear(),mo=start.getMonth();const dim=new Date(y,mo+1,0).getDate();const out=[];for(let d=1;d<=dim;d++)out.push(`${y}-${pad(mo+1)}-${pad(d)}`);return out;}
+  const n=ui.view==='workweek'?5:7;return Array.from({length:n},(_,i)=>addDays(ui.monday,i));
+}
+function agendaRow(it){
+  const color=itemColor(it);
+  const time=it.start?`${it.start}${it.end?'–'+it.end:''}`:'Heldag';
+  const meta=[];
+  if(it.location)meta.push('📍 '+it.location);
+  meta.push((it.shared?'👥 Gemensam':personName(it.personId)));
+  if(it.type==='task')meta.push('• uppgift'+(it.done?' ✓':''));
+  const av=el('span',{class:'ava',style:`width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:14px;flex:0 0 auto;background:${color}`},it.shared?'👥':personIcon(it.personId));
+  const row=el('div',{style:`display:flex;gap:12px;align-items:center;padding:12px;border-radius:12px;border:1px solid var(--line);border-left:6px solid ${color};background:#fff;margin-bottom:8px;cursor:pointer;${it.done?'opacity:.6':''}`,
+    onclick:()=>openEditor(it)},[
+    el('div',{style:'min-width:76px;font-weight:700;font-size:14px;color:var(--heading)'},time),
+    av,
+    el('div',{style:'flex:1;min-width:0'},[
+      el('div',{style:`font-weight:700;font-size:15px;${it.done?'text-decoration:line-through':''}`},it.title),
+      el('div',{class:'muted',style:'font-size:12px'},meta.join(' · '))
+    ])
+  ]);
+  return row;
+}
+function renderAgenda(main){
+  const dates=agendaDates();let any=false;
+  dates.forEach(d=>{
+    const its=itemsForDateVisible(d).sort(sortItems);
+    if(!its.length)return;any=true;
+    main.appendChild(el('h3',{style:'margin:16px 0 8px;color:var(--heading)'},`${DAYS[dowIndex(d)]} ${longDate(d)}${d===todayStr()?' · idag':''}`));
+    const wrap=el('div',{});its.forEach(it=>wrap.appendChild(agendaRow(it)));main.appendChild(wrap);
+  });
+  if(!any)main.appendChild(el('div',{class:'card empty'},'Inga poster att visa för perioden.'));
+  main.appendChild(el('p',{class:'hint',style:'margin-top:10px'},'👁 Visningsläge – endast läsning. Tryck på ögat uppe till höger för att slå av och kunna redigera.'));
 }
 
 function gridDims(){const ds=state.settings.dayStart,de=state.settings.dayEnd,hours=de-ds,HOURPX=54;return {dayStart:ds,dayEnd:de,hours,HOURPX,gridH:hours*HOURPX};}
@@ -714,7 +781,7 @@ function renderMonthView(main){
 /* ============================================================ GEMENSAMT ============================================================ */
 function renderShared(main){
   main.append(el('div',{class:'toolbar'},[el('h3',{style:'margin:0'},'Gemensamma aktiviteter'),el('div',{style:'flex:1'}),
-    el('button',{class:'btn',onclick:()=>openEditor({type:'activity',shared:true,date:ui.selectedDate,participants:state.persons.map(p=>p.id)})},'＋ Ny gemensam aktivitet')]));
+    ui.viewOnly?el('span',{class:'chk',style:'background:#eff6ff;border-color:var(--accent);color:var(--accent);font-weight:600'},'👁 Visningsläge'):el('button',{class:'btn',onclick:()=>openEditor({type:'activity',shared:true,date:ui.selectedDate,participants:state.persons.map(p=>p.id)})},'＋ Ny gemensam aktivitet')]));
   main.append(el('p',{class:'muted',style:'margin-top:-6px'},'Gemensamma aktiviteter visas i alla deltagares kalendrar med en egen färg. Alla inloggade kan skapa gemensamma aktiviteter och välja vilka som deltar.'));
 
   // färg för gemensamt
@@ -776,7 +843,8 @@ function renderTasks(main){
   tbl.appendChild(el('thead',{},el('tr',{},[th(''),th('Uppgift'),th('Ansvarig'),th('Deltagare'),th('Datum'),th('Tid'),th('')])));
   const tb=el('tbody');
   tasks.forEach(t=>{const tr=el('tr',{});const cb=el('input',{type:'checkbox'});cb.checked=!!t.done;
-    cb.onchange=()=>{if(!canEdit(t)){cb.checked=!cb.checked;toast('Du kan bara ändra dina egna uppgifter');return;}t.done=cb.checked;t.updatedAt=new Date().toISOString();if(t.source==='manual')t.pendingSync=true;logHistory('update',t,t.done?'markerad klar':'återöppnad');persist(t);renderMainOnly();};
+    if(ui.viewOnly)cb.disabled=true;
+    cb.onchange=()=>{if(ui.viewOnly){cb.checked=!cb.checked;return;}if(!canEdit(t)){cb.checked=!cb.checked;toast('Du kan bara ändra dina egna uppgifter');return;}t.done=cb.checked;t.updatedAt=new Date().toISOString();if(t.source==='manual')t.pendingSync=true;logHistory('update',t,t.done?'markerad klar':'återöppnad');persist(t);renderMainOnly();};
     const parts=(t.participants||[]).filter(pid=>pid!==t.personId);
     tr.append(td(cb),
       td(el('div',{},[el('strong',{class:t.done?'muted':''},t.title),t.description?el('div',{class:'muted',style:'font-size:12px'},t.description):null,t.shared?el('span',{class:'tag shared',style:'margin-top:4px'},'gemensam'):null])),
@@ -844,15 +912,19 @@ function renderHistory(main){
   // De 20 senaste kalenderuppdateringarna (CSV/iCal/feed/bild) – raderbara
   const upd=el('div',{class:'card full'});
   upd.append(el('h3',{},'Senaste kalenderuppdateringar (max 20)'),
-    el('p',{class:'muted',style:'margin-top:0'},'Varje import eller synk av kalenderinformation loggas här. Du kan radera alla poster som kom in med en viss uppdatering – borttagningen sparas och kommer inte tillbaka vid synk mot molnet.'));
-  if(!state.batches.length)upd.append(el('div',{class:'empty',style:'padding:20px'},'Inga kalenderuppdateringar ännu.'));
-  else state.batches.slice(0,20).forEach(b=>{
+    el('p',{class:'muted',style:'margin-top:0'},'Import av CSV/ICS/bild loggas per användare och ligger kvar här (varje användares senaste import behålls alltid). Prenumerationer visas som en enda rad per prenumeration – bara den senaste uppdateringen. Du kan radera alla poster som kom in med en viss uppdatering – borttagningen sparas och kommer inte tillbaka vid synk mot molnet.'));
+  const curated=curatedBatches(20);
+  if(!curated.length)upd.append(el('div',{class:'empty',style:'padding:20px'},'Inga kalenderuppdateringar ännu.'));
+  else curated.forEach(b=>{
     const remaining=state.items.filter(i=>i.batchId===b.id).length;
+    const forName=b.forId?personName(b.forId):null;
+    const forAva=b.forId?el('span',{class:'ava',title:forName,style:`width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:12px;background:${personColor(b.forId)}`},personIcon(b.forId)):null;
     upd.append(el('div',{class:'batch'},[
       el('span',{class:'kind '+b.kind},({csv:'CSV',ics:'ICS',feed:'Prenumeration',image:'Bild',manual:'Manuell'})[b.kind]||b.kind),
+      forAva,
       el('div',{style:'min-width:160px;flex:1'},[el('div',{},[el('strong',{},b.label)]),
-        el('div',{class:'hint'},`${new Date(b.ts).toLocaleString('sv-SE')} · ${b.by||'—'} · ${remaining} poster kvar`)]),
-      el('button',{class:'btn danger sm',onclick:()=>{if(confirm(`Radera alla ${remaining} poster som kom in med denna uppdatering?\n\n”${b.label}”\n\nDetta kan inte ångras.`))deleteBatch(b.id);}},'Radera denna uppdatering')
+        el('div',{class:'hint'},`${new Date(b.ts).toLocaleString('sv-SE')}${forName?' · '+forName:''} · ${remaining} poster kvar`)]),
+      el('button',{class:'btn danger sm',onclick:()=>{if(confirm(`Radera alla ${remaining} poster som kom in med denna uppdatering?\n\n”${b.label}”\n\nDetta kan inte ångras.`))deleteBatch(b.id);}},'Radera')
     ]));
   });
   main.appendChild(upd);
@@ -984,10 +1056,10 @@ function createItems(data,mode,until){
 
 /* ============================================================ EDITOR ============================================================ */
 let editing=null;let editorParticipants=new Set();
-function quickAdd(date,start,ownerId){openEditor({date,start,end:start?fromMin(clamp(toMin(start)+45,0,state.settings.dayEnd*60)):'',type:'activity',personId:ownerId||activeOwner()});}
+function quickAdd(date,start,ownerId){if(ui.viewOnly)return;openEditor({date,start,end:start?fromMin(clamp(toMin(start)+45,0,state.settings.dayEnd*60)):'',type:'activity',personId:ownerId||activeOwner()});}
 function openEditor(item){
   editing = item && item.id ? item : null;
-  const readOnly = editing ? !canEdit(editing) : false;
+  const readOnly = ui.viewOnly || (editing ? !canEdit(editing) : false);
   const i = item || {type:'activity',date:(ui.view==='day'?ui.selectedDate:ui.monday),start:'',end:'',personId:activeOwner()};
   $('#editorTitle').textContent = editing?(readOnly?'Visa post':'Redigera post'):'Ny post';
   $('#editorDelete').style.display = (editing&&!readOnly)?'':'none';
@@ -995,7 +1067,7 @@ function openEditor(item){
   const b=$('#editorBody');b.innerHTML='';
   editorParticipants = new Set(i.participants||[]);
 
-  if(readOnly)b.appendChild(el('p',{class:'hint',style:'background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:8px 10px;border-radius:8px'},'Denna post tillhör en annan användare. Du kan visa men inte ändra den. (Logga in som ägaren eller använd masterkod för att redigera.)'));
+  if(readOnly)b.appendChild(el('p',{class:'hint',style:'background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:8px 10px;border-radius:8px'},ui.viewOnly?'👁 Visningsläge är på – posten visas men kan inte ändras. Slå av visningsläget (ögat uppe till höger) för att redigera.':'Denna post tillhör en annan användare. Du kan visa men inte ändra den. (Logga in som ägaren eller använd masterkod för att redigera.)'));
 
   // typ
   const seg=el('div',{class:'seg'});
@@ -1189,7 +1261,8 @@ async function refreshSubscription(sub,opts={}){
   try{
     const text=await fetchFeedText(sub);const events=parseICS(text);const t=todayStr();
     const ids=new Set(feedFutureItems(sub.id).map(i=>i.id));state.items=state.items.filter(i=>!ids.has(i.id));
-    const batchId=logBatch('feed',`Prenumeration ”${sub.name}”`,0);let n=0;
+    // en enda batch per prenumeration (key) -> bara senaste uppdateringen behålls i historiken
+    const batchId=logBatch('feed',`Prenumeration ”${sub.name}” · ${personName(sub.personId)}`,0,sub.personId,'feed:'+sub.id);let n=0;
     events.forEach(ev=>{if(!ev.date||ev.date<t)return;
       state.items.push({id:uid(),type:'activity',title:ev.title,description:ev.description,date:ev.date,start:ev.start,end:ev.end,location:ev.location,personId:sub.personId,participants:[],shared:false,done:false,source:'feed',feedId:sub.id,batchId,createdBy:sub.personId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});n++;});
     const b=state.batches.find(x=>x.id===batchId);if(b)b.count=n;
@@ -1277,7 +1350,8 @@ function commitImport(){
   const src=importSource==='image'?'image':(importFormat==='ics'?'ics':'outlook');
   const kind=importSource==='image'?'image':(importFormat==='ics'?'ics':'csv');
   const srcTxt=importSource==='image'?'bild (OCR)':(importFormat==='ics'?'ICS-kalender':'CSV');
-  const batchId=logBatch(kind,`Import från ${srcTxt}`,0);let n=0;
+  // import taggas med målanvändaren (forId) så den syns i historiken per användare
+  const batchId=logBatch(kind,`Import från ${srcTxt} · ${personName(pid)}`,0,pid);let n=0;
   importParsed.forEach(p=>{expandRecurrence(p.date,mode,until).forEach(dt=>{state.items.push({id:uid(),type:(p.type||'activity'),title:p.title,description:p.description,date:dt,start:p.start,end:p.end,location:p.location,personId:pid,participants:[],shared:false,done:false,source:src,batchId,createdBy:pid,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});n++;});});
   const b=state.batches.find(x=>x.id===batchId);if(b)b.count=n;
   const recTxt=mode!=='none'?` (upprepning: ${recurLabel(mode)})`:'';
@@ -1499,8 +1573,9 @@ document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeEditor();closePerson();closeImport();}});
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('mousedown',e=>{if(e.target===o)o.classList.remove('show');}));
 $('#logoutBtn').addEventListener('click',logout);
+$('#viewOnlyBtn').addEventListener('click',toggleViewOnly);
 
-load();loadAuth();applyTheme();_booted=true;
+load();loadAuth();applyTheme();updateViewOnlyBtn();_booted=true;
 render();
 if(!isLoggedIn())showLock();   // låsvyn visas ovanpå; cloudInit fyller på användarlistan
 startCloudOnce();              // molnsynk startar alltid (en gång), oavsett inloggning
