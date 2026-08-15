@@ -239,12 +239,11 @@
     <div class="mark" id="brandMark">GS</div>
     <div>
       <h1>Gymnasieschema</h1>
-      <p class="sub">Veckoplanering &amp; ansvar</p>
+      <p class="sub">Planering per kategori</p>
     </div>
   </div>
   <nav class="tabs" id="tabs">
     <button data-tab="schedule" class="active">Schema</button>
-    <button data-tab="shared">Gemensamt</button>
     <button data-tab="tasks">Uppgifter</button>
     <button data-tab="list">Lista</button>
     <button data-tab="history">Historik</button>
@@ -252,10 +251,7 @@
   </nav>
   <div class="spacer"></div>
   <div class="who">
-    <span class="me" id="whoMe"></span>
-    <select id="whoSelect" title="Skapa poster som" style="display:none"></select>
     <button class="icon-btn" id="viewOnlyBtn" title="Visningsläge (endast läsa)">👁</button>
-    <button class="icon-btn" id="logoutBtn" title="Logga ut / byt användare">⎋</button>
     <span class="conn-dot" id="connDot" title="Lagring"></span>
   </div>
 </header>
@@ -278,7 +274,7 @@
 <!-- Person modal -->
 <div class="overlay" id="personOverlay">
   <div class="modal" style="max-width:480px" role="dialog" aria-modal="true">
-    <div class="mh"><h2 id="personTitle">Användare</h2><div class="spacer"></div><button class="icon-btn" onclick="closePerson()">✕</button></div>
+    <div class="mh"><h2 id="personTitle">Kategori</h2><div class="spacer"></div><button class="icon-btn" onclick="closePerson()">✕</button></div>
     <div class="mb" id="personBody"></div>
     <div class="mf">
       <button class="btn danger" id="personDelete" style="margin-right:auto;display:none" onclick="deletePerson()">Ta bort</button>
@@ -313,7 +309,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.0.3";
+const APP_VERSION="2.1.0";
 const APP_BUILD="2026-08-13";
 const MASTER_CODE="333900";
 
@@ -379,38 +375,32 @@ let cloudStatus='off', cloudLastSync=0, cloudLastError='';
 let _booted=false;
 let freshBoot=false;   // true om localStorage var tomt vid start (ny/rensad enhet)
 
-function currentPerson(){return state.persons.find(p=>p.id===session.userId)||null;}
-function personName(id){const p=state.persons.find(x=>x.id===id);return p?p.name:'—';}
-function personColor(id){const p=state.persons.find(x=>x.id===id);return p?p.color:'#94a3b8';}
-function personIcon(id){const p=state.persons.find(x=>x.id===id);return p?(p.icon||initial(p.name)):'?';}
-function sharedColor(){return (state.settings.sharedColor)||'#7c3aed';}
-function itemColor(it){return it.shared?sharedColor():personColor(it.personId);}
+// Kategorier (tidigare "personer"). Interna nycklar heter fortfarande person*
+// men representerar kategorier (Transport, Läxor, Jobba, Träna, …).
+function catById(id){return state.persons.find(x=>x.id===id)||null;}
+function personName(id){const p=catById(id);return p?p.name:'Okategoriserat';}
+function personColor(id){const p=catById(id);return p?p.color:'#94a3b8';}
+function personIcon(id){const p=catById(id);return p?(p.icon||initial(p.name)):'•';}
+function itemColor(it){return personColor(it.personId);}
 
-/* ---------- permissions ---------- */
-function canEdit(it){
-  if(session.master)return true;
-  const u=session.userId; if(!u)return false;
-  if(it.shared)return it.createdBy===u || (it.participants||[]).includes(u) || it.personId===u;
-  return it.personId===u;
-}
-function canManagePerson(p){return session.master || (p&&p.id===session.userId);}
-function activeOwner(){ // vem nya poster skapas som
-  if(session.master) return (ui.createAs && state.persons.find(p=>p.id===ui.createAs)) ? ui.createAs : (state.persons[0]||{}).id;
-  return session.userId;
+/* ---------- inga behörigheter längre (ingen inloggning) ---------- */
+function canEdit(){return true;}
+function canManagePerson(){return true;}
+function activeOwner(){ // vilken kategori nya poster får som standard
+  if(ui.createAs && catById(ui.createAs))return ui.createAs;
+  const vis=(state.persons||[]).find(p=>p.visible);
+  return (vis||state.persons[0]||{}).id;
 }
 
-/* ---------- theme ---------- */
+/* ---------- theme (endast global) ---------- */
 function effectiveTheme(){
   const b=(state.settings.brand)||{};
-  let t={bg:b.bg||'#eef2f6',heading:b.heading||'#1c2733',accent:b.accent||'#2563eb',logo:b.logo||'GS',logoImg:b.logoImg||''};
-  const u=currentPerson();
-  if(u&&u.theme){if(u.theme.bg)t.bg=u.theme.bg;if(u.theme.heading)t.heading=u.theme.heading;if(u.theme.accent)t.accent=u.theme.accent;}
-  return t;
+  return {bg:b.bg||'#eef2f6',heading:b.heading||'#1c2733',accent:b.accent||'#2563eb',logo:b.logo||'GS',logoImg:b.logoImg||''};
 }
 function applyTheme(){
   const t=effectiveTheme();const r=document.documentElement.style;
   r.setProperty('--bg',t.bg);r.setProperty('--heading',t.heading);r.setProperty('--accent',t.accent);
-  r.setProperty('--accent-dark',shade(t.accent,-15));r.setProperty('--shared',sharedColor());
+  r.setProperty('--accent-dark',shade(t.accent,-15));
   const mark=$('#brandMark');
   if(mark){mark.innerHTML='';if(t.logoImg)mark.appendChild(el('img',{src:t.logoImg,alt:'logo'}));else mark.textContent=t.logo;}
   const meta=$('#themeColor');if(meta)meta.setAttribute('content',t.accent);
@@ -430,9 +420,9 @@ function persist(item){ save(); }
 function loadAuth(){try{const a=JSON.parse(localStorage.getItem(LS_AUTH)||'null');if(a){session.userId=a.userId||null;session.master=!!a.master;}}catch(e){}}
 function saveAuth(){try{localStorage.setItem(LS_AUTH,JSON.stringify({userId:session.userId,master:session.master}));}catch(e){}}
 
+const DEFAULT_CATEGORIES=[['Transport','#0891b2','🚗'],['Läxor','#7c3aed','📚'],['Jobba','#2563eb','💼'],['Träna','#16a34a','🏃']];
 function seed(){
-  const names=['Mikkel','Patrik','Katarina'];
-  state.persons=names.map((n,i)=>({id:uid(),name:n,color:PALETTE[i],icon:EMOJIS[i],pin:'',theme:null,visible:true}));
+  state.persons=DEFAULT_CATEGORIES.map(([name,color,icon])=>({id:uid(),name,color,icon,visible:true}));
   // VIKTIGT: bumpa INTE updatedAt här. Ett tomt seed får aldrig se "nyare" ut än
   // molnet, annars skulle en rensad enhet skriva över molndatan med tomt schema.
   saveLocal();
@@ -443,10 +433,10 @@ function isSeedEmpty(){
     && (!state.batches||!state.batches.length) && (!state.history||!state.history.length);
 }
 function normalizePersons(){
-  (state.persons||[]).forEach(p=>{if(!('icon'in p))p.icon='';if(!('pin'in p))p.pin='';if(!('theme'in p))p.theme=null;if(!('visible'in p))p.visible=true;});
+  (state.persons||[]).forEach(p=>{if(!('icon'in p))p.icon='';if(!('visible'in p))p.visible=true;});
 }
 function normalizeItems(){
-  (state.items||[]).forEach(i=>{if(!Array.isArray(i.participants))i.participants=[];if(!('shared'in i))i.shared=false;if(!('createdBy'in i))i.createdBy=i.personId||null;});
+  (state.items||[]).forEach(i=>{if(i.shared)i.shared=false;});
 }
 function load(){
   let raw=null;
@@ -468,25 +458,23 @@ function load(){
 
 /* ---------- history + batches ---------- */
 function logHistory(action,item,details){
-  const who=session.master?'Master':personName(session.userId);
   state.history.unshift({id:uid(),ts:new Date().toISOString(),action,itemId:item?item.id:null,
-    itemTitle:item?item.title:(details||''),by:who,details:details||''});
+    itemTitle:item?item.title:(details||''),by:'',details:details||''});
   if(state.history.length>3000)state.history.length=3000;
 }
 // key: stabil nyckel för uppdateringar som ska ersätta varandra (t.ex. en
 // prenumeration -> 'feed:<subId>') så bara SENASTE uppdateringen behålls.
-// forId: vilken användare uppdateringen tillhör (för "per användare"-vy).
+// forId: vilken kategori uppdateringen tillhör (för "per kategori"-vy).
 function logBatch(kind,label,count,forId,key){
-  const who=session.master?'Master':personName(session.userId);
   if(key){
     const ex=state.batches.find(b=>b.key===key);
-    if(ex){ex.ts=Date.now();ex.count=count;ex.label=label;ex.by=who;ex.byId=session.userId||null;ex.forId=forId||ex.forId||null;ex.kind=kind;
+    if(ex){ex.ts=Date.now();ex.count=count;ex.label=label;ex.forId=forId||ex.forId||null;ex.kind=kind;
       state.batches=state.batches.filter(b=>b!==ex);state.batches.unshift(ex);return ex.id;}
   }
-  const b={id:uid(),ts:Date.now(),kind,label,count,by:who,byId:session.userId||null,forId:forId||null,key:key||null};
+  const b={id:uid(),ts:Date.now(),kind,label,count,by:'',forId:forId||null,key:key||null};
   state.batches.unshift(b);if(state.batches.length>300)state.batches.length=300;return b.id;
 }
-// Kurerad lista för Historik: garanterar att varje användares SENASTE
+// Kurerad lista för Historik: garanterar att varje kategoris SENASTE
 // import (CSV/ICS/bild) alltid syns, och fyller sedan på med övriga
 // uppdateringar upp till 20. Prenumerationer visas bara som senaste rad
 // (en per prenumeration, tack vare key-mekaniken i logBatch).
@@ -523,24 +511,24 @@ function passesFilters(i){
   if(ui.filterManual && i.source && i.source!=='manual')return false;
   return matchesSearch(i);
 }
-// visas posten för person pid (ägare eller deltagare)?
-function itemInvolves(i,pid){return i.personId===pid || (i.participants||[]).includes(pid);}
+// tillhör posten kategorin pid?
+function itemInvolves(i,pid){return i.personId===pid;}
 function itemsForDateVisible(date){
   const vis=visiblePersonIds();
   return state.items.filter(i=>i.date===date && passesFilters(i) &&
-    (state.persons.some(p=>vis.has(p.id)&&itemInvolves(i,p.id)) || (!i.personId&&!(i.participants||[]).length)));
+    (vis.has(i.personId) || !catById(i.personId)));
 }
 function itemsForPersonDate(date,pid){
-  return state.items.filter(i=>i.date===date && passesFilters(i) && itemInvolves(i,pid));
+  return state.items.filter(i=>i.date===date && passesFilters(i) && i.personId===pid);
 }
 
 /* ============================================================ RENDER ============================================================ */
 function render(){
-  applyTheme();renderWho();renderConn();
+  applyTheme();renderConn();
   const main=$('#main');main.innerHTML='';
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===ui.tab));
+  if(ui.tab==='shared')ui.tab='schedule';
   if(ui.tab==='schedule')renderSchedule(main);
-  else if(ui.tab==='shared')renderShared(main);
   else if(ui.tab==='tasks')renderTasks(main);
   else if(ui.tab==='list')renderList(main);
   else if(ui.tab==='history')renderHistory(main);
@@ -548,23 +536,6 @@ function render(){
 }
 let renderMainOnly=render;
 
-function renderWho(){
-  const me=$('#whoMe');me.innerHTML='';
-  if(session.master){
-    me.appendChild(el('span',{class:'ava',style:'background:#0f172a'},'★'));
-    me.appendChild(el('span',{},'Master'));
-  }else{
-    const p=currentPerson();
-    me.appendChild(el('span',{class:'ava',style:`background:${p?p.color:'#94a3b8'}`},p?(p.icon||initial(p.name)):'?'));
-    me.appendChild(el('span',{},p?p.name:'—'));
-  }
-  const sel=$('#whoSelect');
-  if(session.master){
-    sel.style.display='';sel.innerHTML='';sel.title='Skapa poster som';
-    state.persons.forEach(p=>{const o=el('option',{value:p.id},'som '+p.name);if(p.id===activeOwner())o.selected=true;sel.appendChild(o);});
-    sel.onchange=()=>{ui.createAs=sel.value;saveUI();};
-  }else sel.style.display='none';
-}
 function renderConn(){const dot=$('#connDot');dot.className='conn-dot'+(connState==='on'?' on':connState==='err'?' err':'');dot.title=(typeof cloudStatusText==='function')?cloudStatusText():'Lokal lagring';}
 function updateViewOnlyBtn(){const b=$('#viewOnlyBtn');if(!b)return;b.textContent=ui.viewOnly?'✏️':'👁';b.title=ui.viewOnly?'Visningsläge PÅ – tryck för att redigera':'Visningsläge (endast läsa)';b.style.background=ui.viewOnly?'var(--accent)':'';b.style.color=ui.viewOnly?'#fff':'';document.body.classList.toggle('viewonly',ui.viewOnly);}
 function toggleViewOnly(){ui.viewOnly=!ui.viewOnly;saveUI();updateViewOnlyBtn();render();toast(ui.viewOnly?'Visningsläge på – endast läsning':'Visningsläge av – redigering på');}
@@ -573,7 +544,7 @@ function toggleViewOnly(){ui.viewOnly=!ui.viewOnly;saveUI();updateViewOnlyBtn();
 function controlsBar(){
   const wrap=el('div',{class:'toolbar'});
   const search=el('div',{class:'search'},[el('span',{html:'🔍'}),
-    el('input',{type:'text',placeholder:'Sök titel, ansvarig, plats…',value:ui.search,oninput:e=>{ui.search=e.target.value;saveUI();renderMainOnly();}})]);
+    el('input',{type:'text',placeholder:'Sök titel, kategori, plats…',value:ui.search,oninput:e=>{ui.search=e.target.value;saveUI();renderMainOnly();}})]);
   const ft=el('select',{class:'f',onchange:e=>{ui.filterType=e.target.value;saveUI();renderMainOnly();}},[
     el('option',{value:'all'},'Alla typer'),el('option',{value:'activity'},'Aktiviteter'),el('option',{value:'task'},'Uppgifter')]);ft.value=ui.filterType;
   const man=el('label',{class:'chk'});const mc=el('input',{type:'checkbox'});mc.checked=ui.filterManual;
@@ -716,11 +687,11 @@ function dayColumn(dateStr,items,dims,ownerForAdd){
   return col;
 }
 
-// DAG-vy: en vald dag, valda användare bredvid varandra (en kolumn per användare)
+// DAG-vy: en vald dag, valda kategorier bredvid varandra (en kolumn per kategori)
 function renderDayView(main){
   const dims=gridDims();const date=ui.selectedDate;
   const cols=state.persons.filter(p=>p.visible);
-  if(!cols.length){main.appendChild(el('div',{class:'card empty'},'Inga användare valda. Välj minst en användare under “Visa:”.'));return;}
+  if(!cols.length){main.appendChild(el('div',{class:'card empty'},'Inga kategorier valda. Välj minst en kategori under “Visa:”.'));return;}
   const wrap=el('div',{class:'grid-wrap'});const scroll=el('div',{class:'grid-scroll'});
   const grid=el('div',{class:'wgrid usercols',style:`grid-template-columns:54px repeat(${cols.length},minmax(150px,1fr))`});
   grid.appendChild(el('div',{class:'corner'}));
@@ -739,7 +710,7 @@ function renderDayView(main){
   scroll.appendChild(grid);wrap.appendChild(scroll);main.appendChild(wrap);
 }
 
-// VECKA / ARBETSVECKA: dagar bredvid varandra, alla valda användare färglagda
+// VECKA / ARBETSVECKA: dagar bredvid varandra, alla valda kategorier färglagda
 function renderWeekView(main,nDays){
   const dims=gridDims();
   const wrap=el('div',{class:'grid-wrap'});const scroll=el('div',{class:'grid-scroll'});
@@ -778,57 +749,6 @@ function renderMonthView(main){
   main.appendChild(grid);
 }
 
-/* ============================================================ GEMENSAMT ============================================================ */
-function renderShared(main){
-  main.append(el('div',{class:'toolbar'},[el('h3',{style:'margin:0'},'Gemensamma aktiviteter'),el('div',{style:'flex:1'}),
-    ui.viewOnly?el('span',{class:'chk',style:'background:#eff6ff;border-color:var(--accent);color:var(--accent);font-weight:600'},'👁 Visningsläge'):el('button',{class:'btn',onclick:()=>openEditor({type:'activity',shared:true,date:ui.selectedDate,participants:state.persons.map(p=>p.id)})},'＋ Ny gemensam aktivitet')]));
-  main.append(el('p',{class:'muted',style:'margin-top:-6px'},'Gemensamma aktiviteter visas i alla deltagares kalendrar med en egen färg. Alla inloggade kan skapa gemensamma aktiviteter och välja vilka som deltar.'));
-
-  // färg för gemensamt
-  const colorCard=el('div',{class:'card',style:'margin-bottom:14px'});
-  colorCard.append(el('h3',{},'Färg för gemensamma aktiviteter'));
-  const sw=el('div',{class:'swatches'});
-  PALETTE.forEach(c=>sw.appendChild(el('button',{style:`background:${c};border:3px solid ${c===sharedColor()?'#0f172a':'transparent'}`,onclick:()=>{state.settings.sharedColor=c;save();render();}})));
-  const custom=el('input',{type:'color',value:sharedColor(),onchange:e=>{state.settings.sharedColor=e.target.value;save();render();},style:'width:44px;height:34px;border:1px solid var(--line);border-radius:9px;background:#fff'});
-  colorCard.append(sw,el('div',{style:'margin-top:8px'},custom));
-  main.append(colorCard);
-
-  // lista gemensamma aktiviteter (kommande)
-  const shared=state.items.filter(i=>i.shared && passesFilters(i)).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(toMin(a.start)??1e9)-(toMin(b.start)??1e9));
-  const t=todayStr();const upcoming=shared.filter(i=>!i.date||i.date>=t);
-  if(!upcoming.length)main.append(el('div',{class:'card empty'},'Inga kommande gemensamma aktiviteter. Skapa en med knappen ovan.'));
-  else{
-    const tbl=el('table',{class:'list'});
-    tbl.appendChild(el('thead',{},el('tr',{},[th('Datum'),th('Tid'),th('Aktivitet'),th('Deltagare'),th('')])));
-    const tb=el('tbody');
-    upcoming.forEach(i=>{const tr=el('tr',{});
-      const parts=(i.participants||[]);
-      const pav=el('span',{},parts.map(pid=>el('span',{class:'ava',title:personName(pid),style:`display:inline-flex;width:22px;height:22px;border-radius:50%;align-items:center;justify-content:center;color:#fff;font-size:11px;margin-right:3px;background:${personColor(pid)}`},personIcon(pid))));
-      tr.append(td(i.date?longDate(i.date):'—'),td(i.start?`${i.start}${i.end?'–'+i.end:''}`:'heldag'),
-        td(el('div',{},[el('strong',{},i.title),i.description?el('div',{class:'muted',style:'font-size:12px'},i.description):null])),
-        td(parts.length?pav:el('span',{class:'muted'},'alla/ingen')),
-        td(el('button',{class:'icon-btn',onclick:()=>openEditor(i)},'✎')));
-      tb.appendChild(tr);});
-    tbl.appendChild(tb);main.append(tbl);
-  }
-
-  // användarhantering
-  main.append(renderUsersCard());
-}
-
-function renderUsersCard(){
-  const c=el('div',{class:'card full',style:'margin-top:16px'});
-  c.append(el('h3',{},'Användare'),el('p',{class:'muted',style:'margin-top:0'},'Lägg till användare, ändra färg, ikon (emoji), PIN-kod och personlig layout. Klicka på en användare för att redigera.'));
-  const list=el('div',{});
-  state.persons.forEach(p=>{list.appendChild(el('div',{class:'hstep'},[
-    el('span',{class:'ava',style:`width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:${p.color}`},p.icon||initial(p.name)),
-    el('span',{},p.name),el('span',{style:'flex:1'}),
-    el('span',{class:'muted',style:'font-size:12px'},p.pin?'🔒 PIN satt':'ingen PIN'),
-    el('button',{class:'icon-btn',onclick:()=>openPerson(p)},'✎')]));});
-  c.append(list,el('button',{class:'btn subtle sm',style:'margin-top:10px',onclick:()=>openPerson(null)},'＋ Lägg till användare'));
-  return c;
-}
-
 /* ============================================================ UPPGIFTER ============================================================ */
 function renderTasks(main){
   main.append(controlsBar());
@@ -840,16 +760,14 @@ function renderTasks(main){
   main.appendChild(stat);
   if(!tasks.length){main.appendChild(el('div',{class:'card empty'},'Inga uppgifter. Skapa en med “＋ Ny post” och välj typen Uppgift.'));return;}
   const tbl=el('table',{class:'list'});
-  tbl.appendChild(el('thead',{},el('tr',{},[th(''),th('Uppgift'),th('Ansvarig'),th('Deltagare'),th('Datum'),th('Tid'),th('')])));
+  tbl.appendChild(el('thead',{},el('tr',{},[th(''),th('Uppgift'),th('Kategori'),th('Datum'),th('Tid'),th('')])));
   const tb=el('tbody');
   tasks.forEach(t=>{const tr=el('tr',{});const cb=el('input',{type:'checkbox'});cb.checked=!!t.done;
     if(ui.viewOnly)cb.disabled=true;
-    cb.onchange=()=>{if(ui.viewOnly){cb.checked=!cb.checked;return;}if(!canEdit(t)){cb.checked=!cb.checked;toast('Du kan bara ändra dina egna uppgifter');return;}t.done=cb.checked;t.updatedAt=new Date().toISOString();if(t.source==='manual')t.pendingSync=true;logHistory('update',t,t.done?'markerad klar':'återöppnad');persist(t);renderMainOnly();};
-    const parts=(t.participants||[]).filter(pid=>pid!==t.personId);
+    cb.onchange=()=>{if(ui.viewOnly){cb.checked=!cb.checked;return;}t.done=cb.checked;t.updatedAt=new Date().toISOString();if(t.source==='manual')t.pendingSync=true;logHistory('update',t,t.done?'markerad klar':'återöppnad');persist(t);renderMainOnly();};
     tr.append(td(cb),
-      td(el('div',{},[el('strong',{class:t.done?'muted':''},t.title),t.description?el('div',{class:'muted',style:'font-size:12px'},t.description):null,t.shared?el('span',{class:'tag shared',style:'margin-top:4px'},'gemensam'):null])),
+      td(el('div',{},[el('strong',{class:t.done?'muted':''},t.title),t.description?el('div',{class:'muted',style:'font-size:12px'},t.description):null])),
       td(personBadge(t.personId)),
-      td(parts.length?el('span',{},parts.map(pid=>personIcon(pid)+' ').join('')):el('span',{class:'muted'},'—')),
       td(t.date?longDate(t.date):'—'),td(t.start?`${t.start}${t.end?'–'+t.end:''}`:'—'),
       td(el('button',{class:'icon-btn',onclick:()=>openEditor(t)},'✎')));
     tb.appendChild(tr);});
@@ -861,13 +779,13 @@ function renderList(main){
   main.append(controlsBar());
   const bar=el('div',{class:'toolbar'});
   const dayI=el('input',{class:'f',type:'date',value:ui.listDay||''});
-  const userSel=el('select',{class:'f'});userSel.appendChild(el('option',{value:'all'},'Alla användare'));
-  state.persons.forEach(p=>{const o=el('option',{value:p.id},p.name);if(ui.listUser===p.id)o.selected=true;userSel.appendChild(o);});
+  const userSel=el('select',{class:'f'});userSel.appendChild(el('option',{value:'all'},'Alla kategorier'));
+  state.persons.forEach(p=>{const o=el('option',{value:p.id},(p.icon?p.icon+' ':'')+p.name);if(ui.listUser===p.id)o.selected=true;userSel.appendChild(o);});
   const from=el('input',{class:'f',type:'date',value:ui.listFrom||ui.monday});
   const to=el('input',{class:'f',type:'date',value:ui.listTo||addDays(ui.monday,182)});
   bar.append(el('span',{class:'muted'},'Dag'),dayI,
     el('button',{class:'btn subtle sm',onclick:()=>{dayI.value='';draw();}},'Rensa dag'),
-    el('span',{class:'muted'},'Användare'),userSel,
+    el('span',{class:'muted'},'Kategori'),userSel,
     el('span',{class:'muted'},'Från'),from,el('span',{class:'muted'},'Till'),to,
     el('button',{class:'btn subtle sm',onclick:draw},'Uppdatera'));
   main.appendChild(bar);
@@ -886,7 +804,7 @@ function renderList(main){
       if(i.date!==curDate){curDate=i.date;
         holder.appendChild(el('h3',{style:'margin:18px 0 6px'},`${DAYS[dowIndex(i.date)]} ${longDate(i.date)} · v${isoWeek(i.date)}`));
         const tbl=el('table',{class:'list'});tb=el('tbody');
-        tbl.appendChild(el('thead',{},el('tr',{},[th('Tid'),th('Typ'),th('Titel'),th('Ansvarig'),th('Plats'),th('')])));
+        tbl.appendChild(el('thead',{},el('tr',{},[th('Tid'),th('Typ'),th('Titel'),th('Kategori'),th('Plats'),th('')])));
         tbl.appendChild(tb);holder.appendChild(tbl);}
       const tr=el('tr',{});
       tr.append(td(i.start?`${i.start}${i.end?'–'+i.end:''}`:'heldag'),
@@ -912,7 +830,7 @@ function renderHistory(main){
   // De 20 senaste kalenderuppdateringarna (CSV/iCal/feed/bild) – raderbara
   const upd=el('div',{class:'card full'});
   upd.append(el('h3',{},'Senaste kalenderuppdateringar (max 20)'),
-    el('p',{class:'muted',style:'margin-top:0'},'Import av CSV/ICS/bild loggas per användare och ligger kvar här (varje användares senaste import behålls alltid). Prenumerationer visas som en enda rad per prenumeration – bara den senaste uppdateringen. Du kan radera alla poster som kom in med en viss uppdatering – borttagningen sparas och kommer inte tillbaka vid synk mot molnet.'));
+    el('p',{class:'muted',style:'margin-top:0'},'Import av CSV/ICS/bild loggas per kategori och ligger kvar här (varje kategoris senaste import behålls alltid). Prenumerationer visas som en enda rad per prenumeration – bara den senaste uppdateringen. Du kan radera alla poster som kom in med en viss uppdatering – borttagningen sparas och kommer inte tillbaka vid synk mot molnet.'));
   const curated=curatedBatches(20);
   if(!curated.length)upd.append(el('div',{class:'empty',style:'padding:20px'},'Inga kalenderuppdateringar ännu.'));
   else curated.forEach(b=>{
@@ -942,7 +860,7 @@ function renderHistory(main){
   main.appendChild(card);
 }
 function resetAll(){
-  if(!confirm('Radera ALL information (poster, historik, uppdateringar, användare) och börja om med ett tomt schema?\n\nDetta raderar även i molnet vid nästa synk och kan inte ångras.'))return;
+  if(!confirm('Radera ALL information (poster, historik, uppdateringar, kategorier) och börja om med ett tomt schema?\n\nDetta raderar även i molnet vid nästa synk och kan inte ångras.'))return;
   if(!confirm('Är du helt säker? Detta går inte att ångra.'))return;
   state.items=[];state.history=[];state.batches=[];state.subscriptions=[];
   seed();logHistory('delete',null,'Allt raderat – nytt schema');save();
@@ -978,19 +896,12 @@ function renderSettings(main){
   bc.append(el('button',{class:'btn subtle sm',onclick:()=>{s.brand=defaultSettings().brand;applyTheme();save();render();}},'Återställ standardutseende'));
   wrap.appendChild(bc);
 
-  // Användare
-  const uc=el('div',{class:'card'});uc.append(el('h3',{},'Användare & inloggning'),
-    el('p',{class:'muted',style:'margin-top:0'},'Varje användare kan ha en 4-siffrig PIN och personlig layout. Masterkod (6 siffror) ger åtkomst till alla användare.'));
-  state.persons.forEach(p=>uc.append(el('div',{class:'hstep'},[
-    el('span',{class:'ava',style:`width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:${p.color}`},p.icon||initial(p.name)),
-    el('span',{},p.name),el('span',{style:'flex:1'}),el('span',{class:'muted',style:'font-size:12px'},p.pin?'🔒 PIN':'ingen PIN'),
-    el('button',{class:'icon-btn',onclick:()=>openPerson(p)},'✎')])));
-  uc.append(el('button',{class:'btn subtle sm',style:'margin-top:10px',onclick:()=>openPerson(null)},'＋ Lägg till användare'));
-  wrap.appendChild(uc);
+  // Kategorier
+  wrap.appendChild(renderCategoriesCard());
 
   // Importera kalender (flyttad hit från Schema)
   const ic=el('div',{class:'card'});ic.append(el('h3',{},'Importera kalender'),
-    el('p',{class:'muted',style:'margin-top:0'},'Läs in schema från en CSV- eller ICS-fil, eller från en bild (OCR). Poster kopplas till vald ansvarig och loggas som en kalenderuppdatering i Historik.'));
+    el('p',{class:'muted',style:'margin-top:0'},'Läs in schema från en CSV- eller ICS-fil, eller från en bild (OCR). Poster kopplas till vald kategori och loggas som en kalenderuppdatering i Historik.'));
   ic.append(el('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},[
     el('button',{class:'btn ghost',onclick:openImport},'⤓ Importera CSV/ICS-fil'),
     el('button',{class:'btn ghost',onclick:openImageImport},'🖼 Läs in från bild')]));
@@ -1002,7 +913,7 @@ function renderSettings(main){
   // Version & synk
   const vc=el('div',{class:'card full'});vc.append(el('h3',{},'Version, synk & inställningar'));
   const ref='hlognhxcmuukhxsthibn';
-  vc.append(el('div',{class:'stat',style:'margin-bottom:12px'},[box(state.items.length,'Poster'),box(state.persons.length,'Användare'),box(state.batches.length,'Uppdateringar'),box(state.history.length,'Historikrader')]));
+  vc.append(el('div',{class:'stat',style:'margin-bottom:12px'},[box(state.items.length,'Poster'),box(state.persons.length,'Kategorier'),box(state.batches.length,'Uppdateringar'),box(state.history.length,'Historikrader')]));
   vc.append(infoRow('App-version',`${APP_VERSION} (index.html, byggd ${APP_BUILD})`));
   vc.append(infoRow('Molnsynk (Supabase)',cloudStatusText()));
   vc.append(infoRow('Senaste synk',cloudLastSync?new Date(cloudLastSync).toLocaleString('sv-SE'):'—'));
@@ -1014,10 +925,24 @@ function renderSettings(main){
     el('button',{class:'btn subtle sm',onclick:()=>cloudForcePull()},'⤓ Hämta från molnet nu'),
     el('button',{class:'btn subtle sm',onclick:()=>cloudForcePush()},'⤒ Spara till molnet nu'),
     el('button',{class:'btn subtle sm',onclick:showSchema},'Visa SQL-schema')]));
-  vc.append(el('p',{class:'hint',style:'margin-top:8px'},'All data (användare, poster, prenumerationer, inställningar, utseende och historik) sparas i molnet och skyddas mot att rensas när du tömmer webbläsarens data. Fungerar inte synken: klicka “Testa anslutning”.'));
+  vc.append(el('p',{class:'hint',style:'margin-top:8px'},'All data (kategorier, poster, prenumerationer, inställningar, utseende och historik) sparas i molnet och skyddas mot att rensas när du tömmer webbläsarens data. Fungerar inte synken: klicka “Testa anslutning”.'));
   wrap.appendChild(vc);
 
   main.appendChild(wrap);
+}
+// Kategori-hantering (namn, färg, ikon, dölj) – ersätter tidigare användarkort
+function renderCategoriesCard(){
+  const c=el('div',{class:'card full'});
+  c.append(el('h3',{},'Kategorier'),
+    el('p',{class:'muted',style:'margin-top:0'},'Kategorier används för att gruppera och färglägga aktiviteter (t.ex. Transport, Läxor, Jobba, Träna). Lägg till fler, byt namn, ändra färg och ikon, eller dölj en kategori. Dolda kategorier visas inte i schemat men behåller sina poster.'));
+  state.persons.forEach(p=>c.append(el('div',{class:'hstep'},[
+    el('span',{class:'ava',style:`width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:${p.color}`},p.icon||initial(p.name)),
+    el('span',{style:p.visible?'':'opacity:.5;text-decoration:line-through'},p.name),el('span',{style:'flex:1'}),
+    el('span',{class:'muted',style:'font-size:12px'},p.visible?'synlig':'dold'),
+    el('button',{class:'icon-btn',title:p.visible?'Dölj':'Visa',onclick:()=>{p.visible=!p.visible;save();renderMainOnly();}},p.visible?'👁':'🚫'),
+    el('button',{class:'icon-btn',title:'Redigera',onclick:()=>openPerson(p)},'✎')])));
+  c.append(el('button',{class:'btn subtle sm',style:'margin-top:10px',onclick:()=>openPerson(null)},'＋ Lägg till kategori'));
+  return c;
 }
 function infoRow(k,v){return el('div',{class:'hstep'},[el('span',{class:'muted',style:'min-width:150px;font-size:13px'},k),el('span',{style:'flex:1;font-size:13px'},v)]);}
 function colorRow(val,cb){
@@ -1048,26 +973,25 @@ function recurControls(idPrefix,baseDateStr,defMode){
 }
 function createItems(data,mode,until){
   const dates=expandRecurrence(data.date,mode,until);const created=[];
-  dates.forEach(dt=>{const it=Object.assign({id:uid(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),source:data.source||'manual',participants:[],shared:false,createdBy:session.userId||null},data,{date:dt,pendingSync:true});state.items.push(it);created.push(it);});
+  dates.forEach(dt=>{const it=Object.assign({id:uid(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),source:data.source||'manual'},data,{date:dt,pendingSync:true});state.items.push(it);created.push(it);});
   if(created.length===1)logHistory('create',created[0]);
   else logHistory('create',null,`${data.title}: ${created.length} tillfällen (${recurLabel(mode)})`);
   save();return created;
 }
 
 /* ============================================================ EDITOR ============================================================ */
-let editing=null;let editorParticipants=new Set();
+let editing=null;
 function quickAdd(date,start,ownerId){if(ui.viewOnly)return;openEditor({date,start,end:start?fromMin(clamp(toMin(start)+45,0,state.settings.dayEnd*60)):'',type:'activity',personId:ownerId||activeOwner()});}
 function openEditor(item){
   editing = item && item.id ? item : null;
-  const readOnly = ui.viewOnly || (editing ? !canEdit(editing) : false);
+  const readOnly = ui.viewOnly;
   const i = item || {type:'activity',date:(ui.view==='day'?ui.selectedDate:ui.monday),start:'',end:'',personId:activeOwner()};
   $('#editorTitle').textContent = editing?(readOnly?'Visa post':'Redigera post'):'Ny post';
   $('#editorDelete').style.display = (editing&&!readOnly)?'':'none';
   $('#editorSave').style.display = readOnly?'none':'';
   const b=$('#editorBody');b.innerHTML='';
-  editorParticipants = new Set(i.participants||[]);
 
-  if(readOnly)b.appendChild(el('p',{class:'hint',style:'background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:8px 10px;border-radius:8px'},ui.viewOnly?'👁 Visningsläge är på – posten visas men kan inte ändras. Slå av visningsläget (ögat uppe till höger) för att redigera.':'Denna post tillhör en annan användare. Du kan visa men inte ändra den. (Logga in som ägaren eller använd masterkod för att redigera.)'));
+  if(readOnly)b.appendChild(el('p',{class:'hint',style:'background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:8px 10px;border-radius:8px'},'👁 Visningsläge är på – posten visas men kan inte ändras. Slå av visningsläget (ögat uppe till höger) för att redigera.'));
 
   // typ
   const seg=el('div',{class:'seg'});
@@ -1075,32 +999,14 @@ function openEditor(item){
   b.dataset.type=i.type||'activity';
 
   b.append(labelWrap('Typ',seg),
-    field('title','Titel *','text',i.title||'',{placeholder:'t.ex. Matematik 2b'}),
+    field('title','Titel *','text',i.title||'',{placeholder:'t.ex. Träningspass'}),
     labelWrap('Beskrivning',el('textarea',{id:'f_description',placeholder:'Detaljer, länkar, anteckningar…'},i.description||'')));
   const r1=el('div',{class:'row2'});
-  r1.append(field('date','Datum','date',i.date||ui.selectedDate),field('location','Plats / sal','text',i.location||'',{placeholder:'t.ex. Sal 214'}));
+  r1.append(field('date','Datum','date',i.date||ui.selectedDate),field('location','Plats','text',i.location||'',{placeholder:'t.ex. Gymmet'}));
   b.appendChild(r1);
   const r2=el('div',{class:'row3'});
-  r2.append(field('start','Start','time',i.start||''),field('end','Slut','time',i.end||''),labelWrap('Ansvarig',personSelect(i.personId||activeOwner(),readOnly)));
+  r2.append(field('start','Start','time',i.start||''),field('end','Slut','time',i.end||''),labelWrap('Kategori',personSelect(i.personId||activeOwner())));
   b.appendChild(r2);
-
-  // gemensam
-  const sharedWrap=el('label',{class:'hstep',style:'cursor:pointer'});
-  const shsw=el('span',{class:'switch'});const shcb=el('input',{type:'checkbox',id:'f_shared'});shcb.checked=!!i.shared;if(readOnly)shcb.disabled=true;
-  shcb.onchange=()=>{$('#f_participants').style.display=shcb.checked?'':'none';};
-  shsw.append(shcb,el('span',{class:'sl'}));
-  sharedWrap.append(el('span',{},'Gemensam aktivitet (egen färg, visas hos deltagarna)'),el('span',{style:'flex:1'}),shsw);
-  b.appendChild(sharedWrap);
-
-  // deltagare
-  const pWrap=el('div',{id:'f_participants',style:`display:${i.shared?'':'none'}`});
-  pWrap.append(el('label',{style:'display:block;font-size:12px;font-weight:600;color:var(--muted);margin:8px 0 5px'},'Deltagare (utöver ansvarig)'));
-  const pgrid=el('div',{style:'display:flex;gap:8px;flex-wrap:wrap'});
-  state.persons.forEach(p=>{const on=editorParticipants.has(p.id);
-    const tog=el('div',{class:'ptoggle'+(on?' on':''),onclick:()=>{if(readOnly)return;if(editorParticipants.has(p.id))editorParticipants.delete(p.id);else editorParticipants.add(p.id);tog.classList.toggle('on');}},[
-      el('span',{class:'ava',style:`width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:11px;background:${p.color}`},p.icon||initial(p.name)),p.name]);
-    pgrid.appendChild(tog);});
-  pWrap.appendChild(pgrid);b.appendChild(pWrap);
 
   // klar
   const doneWrap=el('label',{class:'hstep',style:'cursor:pointer'});
@@ -1110,26 +1016,23 @@ function openEditor(item){
   b.appendChild(doneWrap);
 
   if(!editing)b.appendChild(el('div',{style:'border-top:1px solid var(--line);margin-top:6px;padding-top:12px'},recurControls('f_',i.date||ui.selectedDate,'none')));
-  if(readOnly)b.querySelectorAll('input,select,textarea').forEach(n=>{if(n.id!=='f_shared'&&n.id!=='f_done')n.setAttribute('readonly','readonly');});
+  if(readOnly)b.querySelectorAll('input,select,textarea').forEach(n=>{if(n.id!=='f_done')n.setAttribute('readonly','readonly');});
 
   $('#editorOverlay').classList.add('show');
   setTimeout(()=>{const f=$('#f_title');if(f&&!readOnly)f.focus();},40);
 }
 function field(id,label,type,val,extra={}){const inp=el('input',Object.assign({id:'f_'+id,type},extra));inp.value=val||'';return labelWrap(label,inp);}
-function personSelect(sel,dis){const s=el('select',{id:'f_personId'});if(dis||(!session.master))s.disabled=true;state.persons.forEach(p=>{const o=el('option',{value:p.id},p.name);if(p.id===sel)o.selected=true;s.appendChild(o);});if(!session.master&&!dis){/* låst till egen, men behåll värde */s.disabled=true;}return s;}
+function personSelect(sel){const s=el('select',{id:'f_personId'});if(ui.viewOnly)s.disabled=true;state.persons.forEach(p=>{const o=el('option',{value:p.id},(p.icon?p.icon+' ':'')+p.name);if(p.id===sel)o.selected=true;s.appendChild(o);});return s;}
 function closeEditor(){$('#editorOverlay').classList.remove('show');editing=null;}
 function saveFromEditor(){
   const b=$('#editorBody');const title=$('#f_title').value.trim();
   if(!title){toast('Titel krävs');$('#f_title').focus();return;}
-  let ownerId=$('#f_personId').value;
-  if(!session.master && !editing) ownerId=session.userId||ownerId;   // ny post: tvinga egen ägare
+  const ownerId=$('#f_personId').value;
   const data={type:b.dataset.type||'activity',title,description:$('#f_description').value.trim(),
     date:$('#f_date').value||ui.selectedDate,start:$('#f_start').value||'',end:$('#f_end').value||'',
-    location:$('#f_location').value.trim(),personId:ownerId,done:$('#f_done').checked,
-    shared:$('#f_shared').checked,participants:[...editorParticipants].filter(id=>id!==ownerId)};
+    location:$('#f_location').value.trim(),personId:ownerId,done:$('#f_done').checked};
   if(data.start&&data.end&&toMin(data.end)<=toMin(data.start))data.end=fromMin(toMin(data.start)+45);
   if(editing){
-    if(!canEdit(editing)){toast('Du kan bara ändra dina egna poster');return;}
     Object.assign(editing,data);editing.updatedAt=new Date().toISOString();if(editing.source==='manual')editing.pendingSync=true;logHistory('update',editing);persist(editing);
   }else{
     const mode=$('#f_recur')?$('#f_recur').value:'none';
@@ -1140,22 +1043,20 @@ function saveFromEditor(){
   closeEditor();render();
 }
 function deleteFromEditor(){
-  if(!editing)return;if(!canEdit(editing)){toast('Du kan bara ta bort dina egna poster');return;}
+  if(!editing)return;
   if(!confirm('Ta bort denna post?'))return;
   const it=editing;state.items=state.items.filter(x=>x.id!==it.id);logHistory('delete',it);save();closeEditor();render();
 }
 
-/* ============================================================ PERSON / ANVÄNDARE ============================================================ */
-let editingPerson=null;let personTheme=null;
+/* ============================================================ KATEGORI ============================================================ */
+let editingPerson=null;
 function openPerson(p){
-  if(p&&!canManagePerson(p)){toast('Endast användaren själv eller master kan ändra detta');return;}
   editingPerson=p||null;
-  $('#personTitle').textContent=p?'Redigera användare':'Ny användare';
-  $('#personDelete').style.display=(p&&session.master&&state.persons.length>1)?'':'none';
+  $('#personTitle').textContent=p?'Redigera kategori':'Ny kategori';
+  $('#personDelete').style.display=(p&&state.persons.length>1)?'':'none';
   const b=$('#personBody');b.innerHTML='';
-  const cur=p||{name:'',color:PALETTE[state.persons.length%PALETTE.length],icon:EMOJIS[state.persons.length%EMOJIS.length],pin:'',theme:null,visible:true};
-  personTheme = cur.theme?Object.assign({},cur.theme):null;
-  b.appendChild(field2('pname','Namn','text',cur.name));
+  const cur=p||{name:'',color:PALETTE[state.persons.length%PALETTE.length],icon:EMOJIS[state.persons.length%EMOJIS.length],visible:true};
+  b.appendChild(field2('pname','Namn','text',cur.name,{placeholder:'t.ex. Transport'}));
   // färg
   const colors=el('div',{class:'swatches'});
   PALETTE.forEach(c=>colors.appendChild(el('button',{style:`background:${c};border:3px solid ${c===cur.color?'#0f172a':'transparent'}`,onclick:e=>{e.preventDefault();colors.querySelectorAll('button').forEach(x=>x.style.border='3px solid transparent');e.target.style.border='3px solid #0f172a';b.dataset.color=c;}})));
@@ -1168,37 +1069,29 @@ function openPerson(p){
   b.dataset.icon=cur.icon||'';
   const customE=el('input',{class:'f',type:'text',maxlength:'2',placeholder:'egen emoji',value:cur.icon||'',oninput:e=>{b.dataset.icon=e.target.value;},style:'width:90px'});
   b.appendChild(labelWrap('Ikon (emoji)',el('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'},[icons,customE])));
-  // PIN
-  b.appendChild(field2('ppin','PIN-kod (4 siffror, valfritt)','text',cur.pin||'',{inputmode:'numeric',maxlength:'4',placeholder:'t.ex. 1234'}));
-  // personlig layout
-  const themeOn=el('label',{class:'hstep',style:'cursor:pointer'});const tsw=el('span',{class:'switch'});const tcb=el('input',{type:'checkbox',id:'p_theme_on'});tcb.checked=!!personTheme;
-  tcb.onchange=()=>{personTheme=tcb.checked?(personTheme||{bg:'#eef2f6',heading:'#1c2733',accent:cur.color}):null;drawThemeFields();};
-  tsw.append(tcb,el('span',{class:'sl'}));themeOn.append(el('span',{},'Personlig layout (egna färger vid inloggning)'),el('span',{style:'flex:1'}),tsw);
-  b.appendChild(themeOn);
-  const themeBox=el('div',{id:'p_theme_box'});b.appendChild(themeBox);
-  function drawThemeFields(){themeBox.innerHTML='';if(!personTheme)return;
-    themeBox.append(labelWrap('Bakgrundsfärg',colorRow(personTheme.bg||'#eef2f6',v=>personTheme.bg=v)),
-      labelWrap('Rubrikfärg',colorRow(personTheme.heading||'#1c2733',v=>personTheme.heading=v)),
-      labelWrap('Accentfärg',colorRow(personTheme.accent||cur.color,v=>personTheme.accent=v)));}
-  drawThemeFields();
+  // dölj
+  const visWrap=el('label',{class:'hstep',style:'cursor:pointer'});const vsw=el('span',{class:'switch'});const vcb=el('input',{type:'checkbox',id:'pvis'});vcb.checked=cur.visible!==false;
+  vsw.append(vcb,el('span',{class:'sl'}));visWrap.append(el('span',{},'Synlig i schemat'),el('span',{style:'flex:1'}),vsw);
+  b.appendChild(visWrap);
   $('#personOverlay').classList.add('show');
+  setTimeout(()=>{const f=$('#pname');if(f)f.focus();},40);
 }
 function field2(id,label,type,val,extra={}){const inp=el('input',Object.assign({id:id,type,class:'f',style:'width:100%'},extra));inp.value=val||'';return labelWrap(label,inp);}
 function closePerson(){$('#personOverlay').classList.remove('show');editingPerson=null;}
 function savePerson(){
   const name=$('#pname').value.trim();if(!name){toast('Namn krävs');return;}
-  const b=$('#personBody');const color=b.dataset.color;const icon=(b.dataset.icon||'').trim();
-  const pin=($('#ppin').value||'').replace(/\D/g,'').slice(0,4);
-  if(editingPerson){editingPerson.name=name;editingPerson.color=color;editingPerson.icon=icon;editingPerson.pin=pin;editingPerson.theme=personTheme;}
-  else{state.persons.push({id:uid(),name,color,icon,pin,theme:personTheme,visible:true});}
+  const b=$('#personBody');const color=b.dataset.color;const icon=(b.dataset.icon||'').trim();const visible=$('#pvis').checked;
+  if(editingPerson){editingPerson.name=name;editingPerson.color=color;editingPerson.icon=icon;editingPerson.visible=visible;}
+  else{state.persons.push({id:uid(),name,color,icon,visible});}
   save();closePerson();applyTheme();render();
 }
 function deletePerson(){
-  if(!editingPerson||!session.master)return;
-  if(state.persons.length<=1){toast('Minst en användare krävs');return;}
-  if(!confirm('Ta bort användaren? Poster där personen är ansvarig blir utan ansvarig.'))return;
+  if(!editingPerson)return;
+  if(state.persons.length<=1){toast('Minst en kategori krävs');return;}
+  const others=state.items.filter(i=>i.personId===editingPerson.id).length;
+  if(!confirm(`Ta bort kategorin ”${editingPerson.name}”?${others?`\n\n${others} poster i denna kategori blir okategoriserade.`:''}`))return;
   const id=editingPerson.id;state.persons=state.persons.filter(p=>p.id!==id);
-  state.items.forEach(i=>{if(i.personId===id)i.personId=null;i.participants=(i.participants||[]).filter(x=>x!==id);});
+  state.items.forEach(i=>{if(i.personId===id)i.personId=null;});
   save();closePerson();render();
 }
 
@@ -1226,7 +1119,7 @@ function renderSubscriptionsCard(){
   form.appendChild(el('div',{style:'font-weight:600;margin-bottom:8px'},editing?'Redigera prenumeration':'Lägg till prenumeration'));
   const nameI=el('input',{class:'f',style:'width:100%;margin-bottom:8px',placeholder:'Namn (t.ex. SchoolSoft – Klass NA22)',value:cur.name||''});
   const urlI=el('input',{class:'f',style:'width:100%;margin-bottom:8px',placeholder:'https://…/ical-feed/… (eller webcal://…)',value:cur.url||''});
-  const personSel=el('select',{class:'f'});state.persons.forEach(pp=>{const o=el('option',{value:pp.id},'Ansvarig: '+pp.name);if(pp.id===cur.personId)o.selected=true;personSel.appendChild(o);});
+  const personSel=el('select',{class:'f'});state.persons.forEach(pp=>{const o=el('option',{value:pp.id},(pp.icon?pp.icon+' ':'')+pp.name);if(pp.id===cur.personId)o.selected=true;personSel.appendChild(o);});
   form.append(nameI,urlI,personSel);
   const fbtns=el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:8px'});
   fbtns.append(el('button',{class:'btn sm',onclick:async()=>{
@@ -1287,7 +1180,7 @@ function openImport(){
   const inp=el('input',{type:'file',accept:'.csv,.ics,text/csv,text/calendar',style:'display:none',onchange:e=>{const file=e.target.files[0];if(!file)return;file.text().then(t=>{if(/\.ics$/i.test(file.name)||/BEGIN:VCALENDAR/i.test(t.slice(0,300))){importFormat='ics';handleICS(t);}else{importFormat='csv';handleCSV(t);}});}});
   drop.appendChild(inp);
   const dateFmt=el('select',{class:'f',id:'imp_datefmt'},[el('option',{value:'auto'},'CSV-datum: automatiskt'),el('option',{value:'mdy'},'MM/DD/YYYY (US)'),el('option',{value:'dmy'},'DD/MM/YYYY (EU)'),el('option',{value:'ymd'},'YYYY-MM-DD (ISO)')]);
-  const personSel=el('select',{class:'f',id:'imp_person'});state.persons.forEach(p=>{const o=el('option',{value:p.id},'Ansvarig: '+p.name);if(p.id===activeOwner())o.selected=true;personSel.appendChild(o);});
+  const personSel=el('select',{class:'f',id:'imp_person'});state.persons.forEach(p=>{const o=el('option',{value:p.id},(p.icon?p.icon+' ':'')+p.name);if(p.id===activeOwner())o.selected=true;personSel.appendChild(o);});
   const opts=el('div',{style:'display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0'});opts.append(drop,dateFmt,personSel);
   b.appendChild(opts);
   b.appendChild(el('div',{style:'margin:4px 0 12px'},recurControls('imp_',ui.monday,'none')));
@@ -1295,7 +1188,7 @@ function openImport(){
   const countEl=el('span',{id:'imp_csvcount',class:'hint'});
   function updateCsvCount(){const pid=$('#imp_person').value;const fut=csvFutureItemsForPerson(pid).length;countEl.textContent=`${fut} kommande inlästa poster raderas för ${personName(pid)} om “Ersätt” är ikryssat.`;}
   const replaceWrap=el('label',{style:'display:inline-flex;align-items:center;gap:6px;font-size:14px'});
-  replaceWrap.append(el('input',{type:'checkbox',id:'imp_replace'}),'Ersätt: ta bort tidigare inlästa poster (dagens/framtida) för vald ansvarig');
+  replaceWrap.append(el('input',{type:'checkbox',id:'imp_replace'}),'Ersätt: ta bort tidigare inlästa poster (dagens/framtida) för vald kategori');
   manage.append(el('div',{style:'font-weight:600;margin-bottom:6px'},'Tidigare inlästa poster'),countEl,el('div',{style:'margin-top:8px'},replaceWrap));
   b.appendChild(manage);personSel.addEventListener('change',updateCsvCount);updateCsvCount();
   b.appendChild(el('div',{id:'imp_preview'}));
@@ -1350,7 +1243,7 @@ function commitImport(){
   const src=importSource==='image'?'image':(importFormat==='ics'?'ics':'outlook');
   const kind=importSource==='image'?'image':(importFormat==='ics'?'ics':'csv');
   const srcTxt=importSource==='image'?'bild (OCR)':(importFormat==='ics'?'ICS-kalender':'CSV');
-  // import taggas med målanvändaren (forId) så den syns i historiken per användare
+  // import taggas med kategori (forId) så den syns i historiken per kategori
   const batchId=logBatch(kind,`Import från ${srcTxt} · ${personName(pid)}`,0,pid);let n=0;
   importParsed.forEach(p=>{expandRecurrence(p.date,mode,until).forEach(dt=>{state.items.push({id:uid(),type:(p.type||'activity'),title:p.title,description:p.description,date:dt,start:p.start,end:p.end,location:p.location,personId:pid,participants:[],shared:false,done:false,source:src,batchId,createdBy:pid,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});n++;});});
   const b=state.batches.find(x=>x.id===batchId);if(b)b.count=n;
@@ -1372,7 +1265,7 @@ function openImageImport(){
   const baseDate=el('input',{class:'f',id:'imp_date',type:'date',value:ui.monday});
   const wdWrap=el('label',{style:'display:inline-flex;align-items:center;gap:6px;font-size:14px'});const wdCb=el('input',{type:'checkbox',id:'imp_weekday',onchange:()=>{if(($('#ocr_text').value||'').trim())parseImageText();}});wdCb.checked=true;wdWrap.append(wdCb,'Känn igen veckodagar');
   const ntWrap=el('label',{style:'display:inline-flex;align-items:center;gap:6px;font-size:14px'});const ntCb=el('input',{type:'checkbox',id:'imp_keepnotime',onchange:()=>{if(($('#ocr_text').value||'').trim())parseImageText();}});ntCb.checked=true;ntWrap.append(ntCb,'Ta med rader utan tid');
-  const personSel=el('select',{class:'f',id:'imp_person'});state.persons.forEach(p=>{const o=el('option',{value:p.id},'Ansvarig: '+p.name);if(p.id===activeOwner())o.selected=true;personSel.appendChild(o);});
+  const personSel=el('select',{class:'f',id:'imp_person'});state.persons.forEach(p=>{const o=el('option',{value:p.id},(p.icon?p.icon+' ':'')+p.name);if(p.id===activeOwner())o.selected=true;personSel.appendChild(o);});
   const optsA=el('div',{style:'display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0'});optsA.append(drop,runBtn,prog);b.appendChild(optsA);b.appendChild(thumb);
   const optsB=el('div',{style:'display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:12px 0'});optsB.append(el('span',{class:'muted',style:'font-size:12px'},'Startdatum (måndag):'),baseDate,wdWrap,ntWrap,personSel);b.appendChild(optsB);
   b.appendChild(el('div',{style:'margin:4px 0 12px'},recurControls('imp_',ui.monday,'none')));
@@ -1529,56 +1422,19 @@ function showSchema(){$('#importOverlay').querySelector('h2').textContent='Supab
 let toastT=null;
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2400);}
 
-/* ============================================================ LOGIN / LÅS ============================================================ */
-let _lockUser=null;
-function isLoggedIn(){return session.master || (session.userId && state.persons.find(p=>p.id===session.userId));}
-function refreshLockIfOpen(){if($('#lockOverlay').classList.contains('show'))showLock();}
-function showLock(){
-  _lockUser=null;
-  const ov=$('#lockOverlay');const b=$('#lockBody');b.innerHTML='';
-  const t=effectiveTheme();
-  const logo=el('div',{class:'lock-logo'});if((state.settings.brand||{}).logoImg)logo.appendChild(el('img',{src:state.settings.brand.logoImg}));else logo.textContent=(state.settings.brand||{}).logo||'GS';
-  b.append(logo,el('h2',{},'Gymnasieschema'),el('p',{class:'muted'},'Välj användare för att logga in'));
-  const grid=el('div',{class:'lock-users'});
-  state.persons.forEach(p=>grid.appendChild(el('button',{class:'lock-user',onclick:()=>lockPick(p)},[
-    el('span',{class:'lock-ava',style:`background:${p.color}`},p.icon||initial(p.name)),
-    el('span',{style:'flex:1;text-align:left'},[el('div',{},p.name),el('div',{class:'muted',style:'font-size:11px;font-weight:400'},p.pin?'🔒 PIN krävs':'öppen')])])));
-  b.append(grid);
-  b.append(el('div',{id:'lockPin'}));
-  const mi=el('input',{class:'f pininput',id:'lockMaster',type:'password',inputmode:'numeric',maxlength:'6',placeholder:'••••••',style:'width:100%'});
-  const mbtn=el('button',{class:'btn',style:'width:100%;margin-top:8px;justify-content:center',onclick:()=>{if(mi.value.trim()===MASTER_CODE){session={userId:(state.persons[0]||{}).id||null,master:true};finishLogin();}else toast('Fel masterkod');}},'Logga in som administratör');
-  b.append(el('div',{class:'field',style:'margin-top:18px;border-top:1px solid var(--line);padding-top:14px'},[el('label',{},'Masterkod (administratör – åtkomst till alla)'),mi,mbtn]));
-  ov.classList.add('show');
-}
-function lockPick(p){
-  _lockUser=p;const pin=$('#lockPin');pin.innerHTML='';
-  if(!p.pin){session={userId:p.id,master:false};finishLogin();return;}
-  const inp=el('input',{class:'f pininput',id:'lockPinInp',type:'password',inputmode:'numeric',maxlength:'4',placeholder:'••••',style:'width:100%',
-    oninput:e=>{if(e.target.value.length===4)tryPin();}});
-  function tryPin(){if(($('#lockPinInp').value||'')===p.pin){session={userId:p.id,master:false};finishLogin();}else{toast('Fel PIN');$('#lockPinInp').value='';}}
-  pin.append(el('div',{class:'field pinpad',style:'margin-top:14px'},[el('label',{},`PIN för ${p.name}`),inp,
-    el('button',{class:'btn',style:'width:100%;margin-top:8px;justify-content:center',onclick:tryPin},'Logga in')]));
-  setTimeout(()=>{const x=$('#lockPinInp');if(x)x.focus();},40);
-}
-function finishLogin(){
-  if(session.master)ui.createAs=(state.persons[0]||{}).id;
-  saveAuth();$('#lockOverlay').classList.remove('show');applyTheme();render();startCloudOnce();
-  toast(session.master?'Inloggad som administratör':'Inloggad som '+personName(session.userId));
-}
-function logout(){session={userId:null,master:false};try{localStorage.removeItem(LS_AUTH);}catch(e){}showLock();}
+/* ---------- ingen inloggning längre (borttagen) ---------- */
+function refreshLockIfOpen(){}
 function startCloudOnce(){if(_cloudStarted)return;_cloudStarted=true;cloudInit();if(state.subscriptions&&state.subscriptions.length)setTimeout(()=>refreshAllSubscriptions(true).then(()=>{if(ui.tab==='schedule'||ui.tab==='list')render();}),1500);startFeedAutoRefresh();}
 
 /* ============================================================ BOOT ============================================================ */
 document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>{ui.tab=b.dataset.tab;saveUI();render();}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeEditor();closePerson();closeImport();}});
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('mousedown',e=>{if(e.target===o)o.classList.remove('show');}));
-$('#logoutBtn').addEventListener('click',logout);
 $('#viewOnlyBtn').addEventListener('click',toggleViewOnly);
 
-load();loadAuth();applyTheme();updateViewOnlyBtn();_booted=true;
+load();applyTheme();updateViewOnlyBtn();_booted=true;
 render();
-if(!isLoggedIn())showLock();   // låsvyn visas ovanpå; cloudInit fyller på användarlistan
-startCloudOnce();              // molnsynk startar alltid (en gång), oavsett inloggning
+startCloudOnce();              // molnsynk startar direkt (ingen inloggning)
 
 window.openEditor=openEditor;window.closeEditor=closeEditor;window.saveFromEditor=saveFromEditor;window.deleteFromEditor=deleteFromEditor;
 window.openPerson=openPerson;window.closePerson=closePerson;window.savePerson=savePerson;window.deletePerson=deletePerson;
