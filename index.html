@@ -309,7 +309,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.1.0";
+const APP_VERSION="2.2.0";
 const APP_BUILD="2026-08-13";
 const MASTER_CODE="333900";
 
@@ -627,7 +627,8 @@ function agendaRow(it){
   const time=it.start?`${it.start}${it.end?'–'+it.end:''}`:'Heldag';
   const meta=[];
   if(it.location)meta.push('📍 '+it.location);
-  meta.push((it.shared?'👥 Gemensam':personName(it.personId)));
+  meta.push(personName(it.personId));
+  if(it.seriesId)meta.push('🔁 serie');
   if(it.type==='task')meta.push('• uppgift'+(it.done?' ✓':''));
   const av=el('span',{class:'ava',style:`width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:14px;flex:0 0 auto;background:${color}`},it.shared?'👥':personIcon(it.personId));
   const row=el('div',{style:`display:flex;gap:12px;align-items:center;padding:12px;border-radius:12px;border:1px solid var(--line);border-left:6px solid ${color};background:#fff;margin-bottom:8px;cursor:pointer;${it.done?'opacity:.6':''}`,
@@ -671,7 +672,7 @@ function eventEl(it,dims,leftPct,widthPct){
   const top=(s-dayStart*60)/60*HOURPX, hgt=Math.max(18,(e-s)/60*HOURPX-2);
   const cls=`event ${it.type}${it.done?' done':''}${it.shared?' shared':''}`;
   return el('div',{class:cls,style:`top:${top}px;height:${hgt}px;left:calc(${leftPct}% + 3px);width:calc(${widthPct}% - 6px);background:${itemColor(it)}`,onclick:()=>openEditor(it)},[
-    el('div',{class:'et'},[it.shared?el('span',{class:'badge'},'gem'):(it.type==='task'?el('span',{class:'badge'},'uppg'):null), ' '+it.title]),
+    el('div',{class:'et'},[it.type==='task'?el('span',{class:'badge'},'uppg'):null, ' '+(it.seriesId?'🔁 ':'')+it.title]),
     el('div',{class:'em'},`${it.start}${it.end?'–'+it.end:''}${it.location?' · '+it.location:''}`)
   ]);
 }
@@ -973,10 +974,46 @@ function recurControls(idPrefix,baseDateStr,defMode){
 }
 function createItems(data,mode,until){
   const dates=expandRecurrence(data.date,mode,until);const created=[];
-  dates.forEach(dt=>{const it=Object.assign({id:uid(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),source:data.source||'manual'},data,{date:dt,pendingSync:true});state.items.push(it);created.push(it);});
+  const isSeries = mode && mode!=='none' && dates.length>1;
+  const sid = isSeries ? ('s'+uid()) : null;
+  const meta = isSeries ? {seriesId:sid,recurMode:mode,seriesStart:data.date,seriesUntil:until||dates[dates.length-1]} : {};
+  dates.forEach(dt=>{const it=Object.assign({id:uid(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),source:data.source||'manual'},data,meta,{date:dt,pendingSync:true});state.items.push(it);created.push(it);});
   if(created.length===1)logHistory('create',created[0]);
   else logHistory('create',null,`${data.title}: ${created.length} tillfällen (${recurLabel(mode)})`);
   save();return created;
+}
+
+/* ---------- upprepande serier ---------- */
+function seriesItems(sid){return state.items.filter(i=>i.seriesId===sid).sort((a,b)=>(a.date||'').localeCompare(b.date||''));}
+function seriesMeta(sid){const arr=seriesItems(sid);if(!arr.length)return null;const f=arr[0];return {mode:f.recurMode,start:f.seriesStart||arr[0].date,until:f.seriesUntil||arr[arr.length-1].date,count:arr.length,title:f.title};}
+// applicera gemensamma fält (ej datum) på hela serien
+function updateSeriesFields(sid,fields){
+  const arr=seriesItems(sid);const now=new Date().toISOString();
+  arr.forEach(it=>{Object.assign(it,fields);it.updatedAt=now;if(it.source==='manual')it.pendingSync=true;});
+  return arr.length;
+}
+// ändra seriens slutdatum: ta bort tillfällen efter datumet, skapa nya fram till det
+function setSeriesUntil(sid,newUntil,template){
+  const arr=seriesItems(sid);if(!arr.length)return 0;
+  const mode=arr[0].recurMode;const start=arr[0].seriesStart||arr[0].date;const proto=arr[0];
+  const now=new Date().toISOString();
+  const removeIds=new Set(arr.filter(it=>it.date>newUntil).map(it=>it.id));
+  if(removeIds.size)state.items=state.items.filter(it=>!removeIds.has(it.id));
+  const have=new Set(seriesItems(sid).map(it=>it.date));
+  expandRecurrence(start,mode,newUntil).forEach(dt=>{
+    if(have.has(dt))return;
+    const it=Object.assign({},proto,template||{},{id:uid(),date:dt,seriesId:sid,recurMode:mode,seriesStart:start,seriesUntil:newUntil,source:proto.source||'manual',createdAt:now,updatedAt:now,pendingSync:true,done:false});
+    delete it.batchId;delete it.feedId;
+    state.items.push(it);
+  });
+  seriesItems(sid).forEach(it=>{it.seriesUntil=newUntil;it.updatedAt=now;if(it.source==='manual')it.pendingSync=true;});
+  return removeIds.size;
+}
+function deleteSeries(sid){
+  const arr=seriesItems(sid);const n=arr.length;const title=arr.length?arr[0].title:'';
+  state.items=state.items.filter(i=>i.seriesId!==sid);
+  logHistory('delete',null,`Serie borttagen: ”${title}” (${n} tillfällen)`);
+  save();return n;
 }
 
 /* ============================================================ EDITOR ============================================================ */
@@ -988,8 +1025,9 @@ function openEditor(item){
   const i = item || {type:'activity',date:(ui.view==='day'?ui.selectedDate:ui.monday),start:'',end:'',personId:activeOwner()};
   $('#editorTitle').textContent = editing?(readOnly?'Visa post':'Redigera post'):'Ny post';
   $('#editorDelete').style.display = (editing&&!readOnly)?'':'none';
+  $('#editorDelete').textContent='Ta bort';
   $('#editorSave').style.display = readOnly?'none':'';
-  const b=$('#editorBody');b.innerHTML='';
+  const b=$('#editorBody');b.innerHTML='';b.dataset.scope='one';
 
   if(readOnly)b.appendChild(el('p',{class:'hint',style:'background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:8px 10px;border-radius:8px'},'👁 Visningsläge är på – posten visas men kan inte ändras. Slå av visningsläget (ögat uppe till höger) för att redigera.'));
 
@@ -1016,6 +1054,24 @@ function openEditor(item){
   b.appendChild(doneWrap);
 
   if(!editing)b.appendChild(el('div',{style:'border-top:1px solid var(--line);margin-top:6px;padding-top:12px'},recurControls('f_',i.date||ui.selectedDate,'none')));
+
+  // Del av upprepande serie? Låt användaren välja omfattning + ändra slutdatum.
+  if(editing && editing.seriesId){
+    const meta=seriesMeta(editing.seriesId);
+    const box=el('div',{style:'border-top:1px solid var(--line);margin-top:8px;padding-top:12px'});
+    box.appendChild(el('div',{style:'background:#eef5ff;border:1px solid #bfdbfe;color:#1e40af;padding:9px 11px;border-radius:8px;font-size:13px'},
+      `🔁 Del av upprepande serie – ${recurLabel(meta.mode)}, ${meta.count} tillfällen (t.o.m. ${meta.until}).`));
+    const untilInp=el('input',{class:'f',id:'f_series_until',type:'date',value:meta.until||''});
+    const updateScopeUI=()=>{const all=b.dataset.scope==='all';const dF=$('#f_date');if(dF)dF.disabled=all||readOnly;untilInp.disabled=!all||readOnly;$('#editorDelete').textContent=all?'Ta bort hela serien':'Ta bort denna dag';};
+    const scopeSeg=el('div',{class:'seg',style:'margin-top:10px'});
+    [['one','Bara denna dag'],['all','Hela serien']].forEach(([v,lbl])=>scopeSeg.appendChild(el('button',{class:v==='one'?'active':'',onclick:e=>{e.preventDefault();if(readOnly)return;scopeSeg.querySelectorAll('button').forEach(x=>x.classList.remove('active'));e.target.classList.add('active');b.dataset.scope=v;updateScopeUI();}},lbl)));
+    box.appendChild(labelWrap('Vad ska ändras/tas bort?',scopeSeg));
+    box.appendChild(labelWrap('Serien slutar (datum) – gäller “Hela serien”',untilInp));
+    box.appendChild(el('div',{class:'hint'},'“Bara denna dag” ändrar/raderar endast vald dag. “Hela serien” ändrar alla tillfällen och kan även flytta seriens slutdatum (skapar/tar bort tillfällen).'));
+    b.appendChild(box);
+    setTimeout(updateScopeUI,0);
+  }
+
   if(readOnly)b.querySelectorAll('input,select,textarea').forEach(n=>{if(n.id!=='f_done')n.setAttribute('readonly','readonly');});
 
   $('#editorOverlay').classList.add('show');
@@ -1033,7 +1089,21 @@ function saveFromEditor(){
     location:$('#f_location').value.trim(),personId:ownerId,done:$('#f_done').checked};
   if(data.start&&data.end&&toMin(data.end)<=toMin(data.start))data.end=fromMin(toMin(data.start)+45);
   if(editing){
-    Object.assign(editing,data);editing.updatedAt=new Date().toISOString();if(editing.source==='manual')editing.pendingSync=true;logHistory('update',editing);persist(editing);
+    if(editing.seriesId && b.dataset.scope==='all'){
+      // Hela serien: applicera gemensamma fält (ej datum) på alla tillfällen
+      const shared={type:data.type,title:data.title,description:data.description,start:data.start,end:data.end,location:data.location,personId:data.personId,done:data.done};
+      updateSeriesFields(editing.seriesId,shared);
+      // ev. nytt slutdatum
+      const meta=seriesMeta(editing.seriesId);
+      const newUntil=$('#f_series_until')?$('#f_series_until').value:null;
+      let extra='';
+      if(newUntil && newUntil!==meta.until){ setSeriesUntil(editing.seriesId,newUntil,shared); extra=` · slutdatum ${newUntil}`; }
+      const cnt=seriesItems(editing.seriesId).length;
+      logHistory('update',null,`Hela serien ändrad: ”${data.title}” (${cnt} tillfällen${extra})`);
+      save();toast(`Hela serien uppdaterad (${cnt} tillfällen)`);
+    }else{
+      Object.assign(editing,data);editing.updatedAt=new Date().toISOString();if(editing.source==='manual')editing.pendingSync=true;logHistory('update',editing);persist(editing);
+    }
   }else{
     const mode=$('#f_recur')?$('#f_recur').value:'none';
     const until=($('#f_recur_until')&&mode!=='none')?$('#f_recur_until').value:null;
@@ -1044,7 +1114,14 @@ function saveFromEditor(){
 }
 function deleteFromEditor(){
   if(!editing)return;
-  if(!confirm('Ta bort denna post?'))return;
+  const b=$('#editorBody');
+  if(editing.seriesId && b.dataset.scope==='all'){
+    const meta=seriesMeta(editing.seriesId);
+    if(!confirm(`Ta bort HELA serien ”${editing.title}” (${meta?meta.count:''} tillfällen)?\n\nDetta kan inte ångras.`))return;
+    deleteSeries(editing.seriesId);closeEditor();render();
+    toast('Hela serien borttagen');return;
+  }
+  if(!confirm(editing.seriesId?'Ta bort bara denna dag ur serien?':'Ta bort denna post?'))return;
   const it=editing;state.items=state.items.filter(x=>x.id!==it.id);logHistory('delete',it);save();closeEditor();render();
 }
 
