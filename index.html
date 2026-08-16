@@ -97,6 +97,8 @@
 
   .grid-wrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
   .grid-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  /* Låst schemavy: menyraderna ovanför ligger kvar, endast schemat scrollar (vertikalt+horisontellt) */
+  .grid-scroll.sched{overflow:auto}
   .wgrid{display:grid;min-width:640px}
   .wgrid.usercols{min-width:520px}
   .wgrid .corner{background:#f8fafc;border-bottom:1px solid var(--line);border-right:1px solid var(--line)}
@@ -309,7 +311,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.4.1";
+const APP_VERSION="2.5.0";
 const APP_BUILD="2026-08-13";
 const MASTER_CODE="333900";
 
@@ -363,7 +365,8 @@ const LS_AUTH='gymnasieschema_auth';
 function defaultSettings(){return {dayStart:8,dayEnd:17,feedProxy:'',
   brand:{logo:'GS',logoImg:'',bg:'#eef2f6',heading:'#1c2733',accent:'#2563eb'}, sharedColor:'#7c3aed'};}
 let state = {
-  persons:[], items:[], history:[], batches:[], subscriptions:[], deletedSubs:[],
+  persons:[], items:[], history:[], batches:[], subscriptions:[],
+  deletedSubs:[], deletedItems:[], deletedCats:[],
   settings: defaultSettings(), updatedAt:0
 };
 // enhetslokal UI (synkas ej)
@@ -413,7 +416,8 @@ function applyTheme(){
 function saveLocal(){
   try{localStorage.setItem(LS_KEY,JSON.stringify({
     persons:state.persons,items:state.items,history:state.history,batches:state.batches,
-    subscriptions:state.subscriptions,deletedSubs:state.deletedSubs,settings:state.settings,updatedAt:state.updatedAt
+    subscriptions:state.subscriptions,deletedSubs:state.deletedSubs,deletedItems:state.deletedItems,deletedCats:state.deletedCats,
+    settings:state.settings,updatedAt:state.updatedAt
   }));}catch(e){console.warn('save fail',e);}
 }
 function saveUI(){try{localStorage.setItem(LS_UI,JSON.stringify(ui));}catch(e){}}
@@ -451,6 +455,8 @@ function load(){
   if(!Array.isArray(state.subscriptions))state.subscriptions=[];
   if(!Array.isArray(state.batches))state.batches=[];
   if(!Array.isArray(state.deletedSubs))state.deletedSubs=[];
+  if(!Array.isArray(state.deletedItems))state.deletedItems=[];
+  if(!Array.isArray(state.deletedCats))state.deletedCats=[];
   if(!Array.isArray(state.history))state.history=[];
   if(!Array.isArray(state.items))state.items=[];
   if(!state.persons||!state.persons.length)seed();
@@ -501,6 +507,7 @@ function curatedBatches(limit){
 function deleteBatch(id){
   const b=state.batches.find(x=>x.id===id);if(!b)return;
   const before=state.items.length;
+  tombstoneItems(state.items.filter(i=>i.batchId===id).map(i=>i.id));
   state.items=state.items.filter(i=>i.batchId!==id);
   const removed=before-state.items.length;
   state.batches=state.batches.filter(x=>x.id!==id);
@@ -622,7 +629,20 @@ function renderSchedule(main){
   else if(ui.view==='month')renderMonthView(main);
   else renderWeekView(main, ui.view==='workweek'?5:7);
   main.appendChild(el('p',{class:'hint',style:'margin-top:10px'},'Tips: dubbelklicka i schemat för att lägga till en post. Klicka på en post för att öppna/redigera.'));
+  sizeSchedScroll();
 }
+// Storleksanpassa schemats scrollyta så att menyraderna ovanför ligger låsta
+// och endast schemat scrollar (upp/ner). Endast dag/arbetsvecka/vecka.
+function sizeSchedScroll(){
+  requestAnimationFrame(()=>{
+    const sc=$('#main .grid-scroll.sched');if(!sc)return;
+    const top=sc.getBoundingClientRect().top;
+    const h=Math.max(260,Math.floor(window.innerHeight-top-14));
+    sc.style.maxHeight=h+'px';
+  });
+}
+let _schedResizeBound=false;
+function bindSchedResize(){if(_schedResizeBound)return;_schedResizeBound=true;window.addEventListener('resize',()=>{if(ui.tab==='schedule'&&!ui.viewOnly)sizeSchedScroll();});}
 
 /* Förenklad, touch-vänlig agendavy (endast visning – för iPhone m.fl.) */
 function agendaDates(){
@@ -701,7 +721,7 @@ function renderDayView(main){
   const dims=gridDims();const date=ui.selectedDate;
   const cols=state.persons.filter(p=>p.visible);
   if(!cols.length){main.appendChild(el('div',{class:'card empty'},'Inga kategorier valda. Välj minst en kategori under “Visa:”.'));return;}
-  const wrap=el('div',{class:'grid-wrap'});const scroll=el('div',{class:'grid-scroll'});
+  const wrap=el('div',{class:'grid-wrap'});const scroll=el('div',{class:'grid-scroll sched'});
   const grid=el('div',{class:'wgrid usercols',style:`grid-template-columns:54px repeat(${cols.length},minmax(150px,1fr))`});
   grid.appendChild(el('div',{class:'corner'}));
   cols.forEach(p=>grid.appendChild(el('div',{class:'dayhead'},[
@@ -722,7 +742,7 @@ function renderDayView(main){
 // VECKA / ARBETSVECKA: dagar bredvid varandra, alla valda kategorier färglagda
 function renderWeekView(main,nDays){
   const dims=gridDims();
-  const wrap=el('div',{class:'grid-wrap'});const scroll=el('div',{class:'grid-scroll'});
+  const wrap=el('div',{class:'grid-wrap'});const scroll=el('div',{class:'grid-scroll sched'});
   const grid=el('div',{class:'wgrid',style:`grid-template-columns:54px repeat(${nDays},minmax(110px,1fr))`});
   grid.appendChild(el('div',{class:'corner'}));
   const dates=[];for(let i=0;i<nDays;i++){const d=addDays(ui.monday,i);dates.push(d);const isT=d===todayStr();
@@ -800,19 +820,35 @@ function renderList(main){
     el('span',{class:'muted'},'Från'),from,el('span',{class:'muted'},'Till'),to,
     el('button',{class:'btn subtle sm',onclick:draw},'Uppdatera'));
   main.appendChild(bar);
-  main.appendChild(el('p',{class:'hint',style:'margin-top:-6px'},'Tips: sök i fältet ovan (t.ex. ett namn), markera raderna du vill ta bort och klicka “Radera markerade”.'));
+  main.appendChild(el('p',{class:'hint',style:'margin-top:-6px'},'Tips: sök i fältet ovan (t.ex. ett namn). Markera rader och “Radera markerade”, eller “Radera alla träffar” för att ta bort ALLA poster med samma namn – på alla datum.'));
 
   // markera-alla + massradering
   const selbar=el('div',{class:'toolbar',style:'align-items:center'});
   const selAll=el('input',{type:'checkbox',title:'Markera alla i resultatet'});
   const selInfo=el('span',{class:'muted',style:'font-size:13px'},'0 markerade');
   const delBtn=el('button',{class:'btn danger sm',disabled:true,onclick:()=>bulkDelete()},'🗑 Radera markerade');
+  const delAllBtn=el('button',{class:'btn danger sm',onclick:()=>deleteAllMatching()},'🗑 Radera alla träffar (alla datum)');
   if(ui.viewOnly){selbar.append(el('span',{class:'chk',style:'background:#eff6ff;border-color:var(--accent);color:var(--accent);font-weight:600'},'👁 Visningsläge – radering avstängd'));}
   else{
     const selAllWrap=el('label',{class:'chk'});selAllWrap.append(selAll,'Markera alla i resultatet');
-    selbar.append(selAllWrap,selInfo,el('div',{style:'flex:1'}),delBtn);
+    selbar.append(selAllWrap,selInfo,el('div',{style:'flex:1'}),delAllBtn,delBtn);
   }
   main.appendChild(selbar);
+  // alla poster som matchar nuvarande sök/typ/kategori – oavsett datumintervall
+  function allMatching(){let r=state.items.filter(i=>passesFilters(i));if(userSel.value!=='all')r=r.filter(i=>itemInvolves(i,userSel.value));return r;}
+  function deleteAllMatching(){
+    const rows=allMatching();
+    if(!rows.length){toast('Inga poster matchar sökningen/filtret');return;}
+    const feedN=rows.filter(i=>i.source==='feed').length;
+    let msg=`Radera ALLA ${rows.length} poster som matchar nuvarande sökning/filter – på alla datum (även utanför datumintervallet)?\n\nDetta kan inte ångras.`;
+    if(feedN)msg+=`\n\nOBS: ${feedN} kommer från en prenumeration och kan komma tillbaka vid nästa synk. Ta bort prenumerationen (Inställningar) för att radera dem permanent.`;
+    if(!confirm(msg))return;
+    const ids=new Set(rows.map(i=>i.id));
+    tombstoneItems([...ids]);
+    state.items=state.items.filter(i=>!ids.has(i.id));
+    logHistory('delete',null,`${rows.length} poster raderade (alla träffar i Lista)`);
+    listSelected.clear();save();draw();toast(`${rows.length} poster raderade`);
+  }
   const holder=el('div',{});main.appendChild(holder);
 
   let shownIds=[];
@@ -829,6 +865,7 @@ function renderList(main){
     const n=listSelected.size;
     if(!confirm(`Radera ${n} markerade poster? Detta kan inte ångras.`))return;
     const ids=new Set(listSelected);
+    tombstoneItems([...ids]);
     state.items=state.items.filter(i=>!ids.has(i.id));
     logHistory('delete',null,`${n} poster raderade (massradering i Lista)`);
     listSelected.clear();save();draw();toast(`${n} poster raderade`);
@@ -904,6 +941,7 @@ function deleteHistoryEntry(id){
   if(existing.length){
     if(!confirm(`Radera ${existing.length} aktivitet${existing.length>1?'er':''} som denna loggrad avser?\n\n”${h.itemTitle||h.details||''}”\n\nDetta tar bort själva aktiviteten/aktiviteterna, inte bara loggraden. Kan inte ångras.`))return;
     const set=new Set(existing);
+    tombstoneItems(existing);
     state.items=state.items.filter(it=>!set.has(it.id));
     state.history=state.history.filter(x=>x.id!==id);
     logHistory('delete',null,`${existing.length} aktivitet${existing.length>1?'er':''} raderade via Ändringsloggen`);
@@ -917,6 +955,10 @@ function deleteHistoryEntry(id){
 function resetAll(){
   if(!confirm('Radera ALL information (poster, historik, uppdateringar, kategorier) och börja om med ett tomt schema?\n\nDetta raderar även i molnet vid nästa synk och kan inte ångras.'))return;
   if(!confirm('Är du helt säker? Detta går inte att ångra.'))return;
+  // tombstona allt så molnet inte återställer det vid nästa synk
+  tombstoneItems(state.items.map(i=>i.id));
+  tombstoneCats(state.persons.map(p=>p.id));
+  (state.subscriptions||[]).forEach(s=>{const k=subKey(s);if(k&&!state.deletedSubs.includes(k))state.deletedSubs.push(k);});
   state.items=[];state.history=[];state.batches=[];state.subscriptions=[];
   seed();logHistory('delete',null,'Allt raderat – nytt schema');save();
   toast('Allt raderat – nytt schema skapat');render();
@@ -1066,6 +1108,7 @@ function setSeriesUntil(sid,newUntil,template){
 }
 function deleteSeries(sid){
   const arr=seriesItems(sid);const n=arr.length;const title=arr.length?arr[0].title:'';
+  tombstoneItems(arr.map(i=>i.id));
   state.items=state.items.filter(i=>i.seriesId!==sid);
   logHistory('delete',null,`Serie borttagen: ”${title}” (${n} tillfällen)`);
   save();return n;
@@ -1180,7 +1223,7 @@ function deleteFromEditor(){
     toast('Hela serien borttagen');return;
   }
   if(!confirm(editing.seriesId?'Ta bort bara denna dag ur serien?':'Ta bort denna post?'))return;
-  const it=editing;state.items=state.items.filter(x=>x.id!==it.id);logHistory('delete',it);save();closeEditor();render();
+  const it=editing;tombstoneItems([it.id]);state.items=state.items.filter(x=>x.id!==it.id);logHistory('delete',it);save();closeEditor();render();
 }
 
 /* ============================================================ KATEGORI ============================================================ */
@@ -1225,7 +1268,7 @@ function deletePerson(){
   if(state.persons.length<=1){toast('Minst en kategori krävs');return;}
   const others=state.items.filter(i=>i.personId===editingPerson.id).length;
   if(!confirm(`Ta bort kategorin ”${editingPerson.name}”?${others?`\n\n${others} poster i denna kategori blir okategoriserade.`:''}`))return;
-  const id=editingPerson.id;state.persons=state.persons.filter(p=>p.id!==id);
+  const id=editingPerson.id;tombstoneCats([id]);state.persons=state.persons.filter(p=>p.id!==id);
   state.items.forEach(i=>{if(i.personId===id)i.personId=null;});
   save();closePerson();render();
 }
@@ -1307,7 +1350,8 @@ function deleteSubscription(subId,alsoItems){
   if(sub){const k=subKey(sub);if(k&&!state.deletedSubs.includes(k))state.deletedSubs.push(k);}   // tombstone (URL) – synkas, hindrar återuppståndelse
   state.subscriptions=state.subscriptions.filter(s=>s.id!==subId);
   // Att ta bort prenumerationen är enda sättet att ta bort prenumererat data:
-  // ta då bort ALLA dess poster (inte bara framtida).
+  // ta då bort ALLA dess poster (inte bara framtida) och tombstona dem.
+  tombstoneItems(state.items.filter(i=>i.feedId===subId).map(i=>i.id));
   state.items=state.items.filter(i=>i.feedId!==subId);
   logHistory('delete',null,`Prenumeration borttagen${sub?': ”'+sub.name+'”':''}`);
   save();render();
@@ -1379,7 +1423,7 @@ function parseICS(text){
 }
 function csvItemsForPerson(pid){return state.items.filter(i=>(i.source==='outlook'||i.source==='ics'||i.source==='image')&&i.personId===pid);}
 function csvFutureItemsForPerson(pid){const t=todayStr();return state.items.filter(i=>(i.source==='outlook'||i.source==='ics'||i.source==='image')&&i.personId===pid&&i.date&&i.date>=t);}
-function deleteCsvItemsForPerson(pid){const victims=csvFutureItemsForPerson(pid);if(!victims.length)return 0;const ids=new Set(victims.map(v=>v.id));state.items=state.items.filter(i=>!ids.has(i.id));logHistory('delete',null,`${victims.length} inlästa poster (dagens/framtida) borttagna för ${personName(pid)}`);save();return victims.length;}
+function deleteCsvItemsForPerson(pid){const victims=csvFutureItemsForPerson(pid);if(!victims.length)return 0;const ids=new Set(victims.map(v=>v.id));tombstoneItems([...ids]);state.items=state.items.filter(i=>!ids.has(i.id));logHistory('delete',null,`${victims.length} inlästa poster (dagens/framtida) borttagna för ${personName(pid)}`);save();return victims.length;}
 function commitImport(){
   if(!importParsed||!importParsed.length)return;
   const pid=$('#imp_person').value;
@@ -1463,7 +1507,11 @@ function normTime(s){if(!s)return '';s=s.trim();let m=s.match(/(\d{1,2}):(\d{2})
 
 /* ---------- export / import JSON ---------- */
 function exportJSON(){const data={version:2,exportedAt:new Date().toISOString(),persons:state.persons,items:state.items,history:state.history,batches:state.batches,subscriptions:state.subscriptions,settings:state.settings};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=el('a',{href:URL.createObjectURL(blob),download:`gymnasieschema-${todayStr()}.json`});document.body.appendChild(a);a.click();a.remove();}
-function importJSON(e){const file=e.target.files[0];if(!file)return;file.text().then(t=>{try{const d=JSON.parse(t);if(d.persons)state.persons=d.persons;if(d.items)state.items=d.items;if(d.history)state.history=d.history;if(d.batches)state.batches=d.batches;if(d.subscriptions)state.subscriptions=d.subscriptions;if(d.settings)Object.assign(state.settings,d.settings);normalizePersons();normalizeItems();save();render();toast('Data importerad');}catch(err){toast('Ogiltig JSON-fil');}});e.target.value='';}
+function importJSON(e){const file=e.target.files[0];if(!file)return;file.text().then(t=>{try{const d=JSON.parse(t);if(d.persons)state.persons=d.persons;if(d.items)state.items=d.items;if(d.history)state.history=d.history;if(d.batches)state.batches=d.batches;if(d.subscriptions)state.subscriptions=d.subscriptions;if(d.settings)Object.assign(state.settings,d.settings);
+  // återställda id:n ska inte vara tombstonade (annars tas de bort igen vid synk)
+  const itemIds=new Set((state.items||[]).map(i=>i.id));state.deletedItems=(state.deletedItems||[]).filter(id=>!itemIds.has(id));
+  const catIds=new Set((state.persons||[]).map(p=>p.id));state.deletedCats=(state.deletedCats||[]).filter(id=>!catIds.has(id));
+  normalizePersons();normalizeItems();normalizeSubscriptions();save();render();toast('Data importerad');}catch(err){toast('Ogiltig JSON-fil');}});e.target.value='';}
 
 /* ============================================================ MOLNSYNK (Supabase) ============================================================ */
 const SUPA_URL="https://hlognhxcmuukhxsthibn.supabase.co";
@@ -1473,45 +1521,68 @@ let _pushTimer=null,_pollStarted=false,_cloudStarted=false;
 function supaRestUrl(){return SUPA_URL.replace(/\/+$/,'')+'/rest/v1';}
 function cloudEnabled(){return /^https?:\/\//.test(SUPA_URL)&&SUPA_KEY.length>20;}
 function cloudHeaders(extra){return Object.assign({apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY,'Content-Type':'application/json'},extra||{});}
-function cloudData(){return {persons:state.persons,items:state.items.map(i=>{const j=Object.assign({},i);delete j.pendingSync;return j;}),history:state.history,batches:state.batches,subscriptions:state.subscriptions,deletedSubs:state.deletedSubs,settings:state.settings,updatedAt:state.updatedAt,app:'gymnasieschema',v:2};}
+function cloudData(){return {persons:state.persons,items:state.items.map(i=>{const j=Object.assign({},i);delete j.pendingSync;return j;}),history:state.history,batches:state.batches,subscriptions:state.subscriptions,deletedSubs:state.deletedSubs,deletedItems:state.deletedItems,deletedCats:state.deletedCats,settings:state.settings,updatedAt:state.updatedAt,app:'gymnasieschema',v:2};}
+// tombstones vid explicit borttagning – gör att borttagningar sprids och att
+// borttagna poster/kategorier aldrig återuppstår vid molnsynk.
+function tombstoneItems(ids){if(!Array.isArray(state.deletedItems))state.deletedItems=[];const set=new Set(state.deletedItems);ids.forEach(id=>{if(id)set.add(id);});state.deletedItems=[...set].slice(-8000);}
+function tombstoneCats(ids){if(!Array.isArray(state.deletedCats))state.deletedCats=[];const set=new Set(state.deletedCats);ids.forEach(id=>{if(id)set.add(id);});state.deletedCats=[...set].slice(-2000);}
 function clearPendingSync(){let ch=false;(state.items||[]).forEach(i=>{if(i.pendingSync){delete i.pendingSync;ch=true;}});if(ch)saveLocal();}
 function applyCloud(data){
   if(!data)return;
-  const localItems=state.items||[];
+  const ms=v=>{const t=Date.parse(v||'');return isNaN(t)?0:t;};
+  // På en ny/rensad enhet bidrar inte det lokala seed:et till union (annars
+  // skulle standardkategorierna dubbleras mot molnets). Molnet blir då sanning.
+  const localItems=freshBoot?[]:(state.items||[]);
+  const localPersons=freshBoot?[]:(state.persons||[]);
   const localSubs=state.subscriptions||[];
-  const localTombs=state.deletedSubs||[];
-  if(Array.isArray(data.persons))state.persons=data.persons;
   if(Array.isArray(data.history))state.history=data.history;
   if(Array.isArray(data.batches))state.batches=data.batches;
   if(data.settings){const d=defaultSettings();state.settings=Object.assign({},d,data.settings);state.settings.brand=Object.assign({},d.brand,data.settings.brand||{});}
-  // PRENUMERATIONER: union av lokalt + moln (nyckel = URL), minus tombstones. En
-  // prenumeration försvinner ALDRIG via synk – tas bort endast genom att ta bort
-  // prenumerationen (vilket sätter en tombstone som synkas till alla enheter).
+
+  // PRENUMERATIONER: union (nyckel = URL) minus tombstones. Se tidigare.
   const cloudSubs=Array.isArray(data.subscriptions)?data.subscriptions:[];
-  const tombs=new Set([...(localTombs||[]),...((Array.isArray(data.deletedSubs)?data.deletedSubs:[]))]);
+  const subTombs=new Set([...(state.deletedSubs||[]),...((Array.isArray(data.deletedSubs)?data.deletedSubs:[]))]);
   const subMap=new Map();
-  cloudSubs.forEach(s=>{const k=subKey(s);if(k&&!tombs.has(k))subMap.set(k,s);});
-  localSubs.forEach(s=>{const k=subKey(s);if(k&&!tombs.has(k))subMap.set(k,s);});   // lokal vinner vid samma URL
+  cloudSubs.forEach(s=>{const k=subKey(s);if(k&&!subTombs.has(k))subMap.set(k,s);});
+  localSubs.forEach(s=>{const k=subKey(s);if(k&&!subTombs.has(k))subMap.set(k,s);});
   const mergedSubs=[...subMap.values()].map(s=>Object.assign({},s));
   mergedSubs.forEach(s=>{if(!s.id)s.id='sub'+uid();});
-  state.subscriptions=mergedSubs;
-  state.deletedSubs=[...tombs].slice(-500);
+  state.subscriptions=mergedSubs;state.deletedSubs=[...subTombs].slice(-500);
   const liveSubIds=new Set(mergedSubs.map(s=>s.id));
-  // feedId för lokala prenumerationsposter vars prenumeration tombstonats -> ska bort
-  const droppedLocalSubIds=new Set((localSubs||[]).filter(s=>tombs.has(subKey(s))).map(s=>s.id));
-  // POSTER: molnet trumfar, MEN behåll (a) prenumerationsposter (feed) för
-  // prenumerationer som finns kvar och (b) osynkade manuella poster.
-  let items=(Array.isArray(data.items)?data.items.slice():[]).filter(i=>!(i&&i.source==='feed'&&droppedLocalSubIds.has(i.feedId)));
-  const cloudIds=new Set(items.map(i=>i&&i.id));
-  const cloudTs=data.updatedAt||0;const ms=v=>{const t=Date.parse(v||'');return isNaN(t)?0:t;};
-  localItems.forEach(i=>{
-    if(!i||cloudIds.has(i.id))return;
-    if(i.source==='feed'){ if(liveSubIds.has(i.feedId))items.push(i); return; }
-    if(i.source==='manual' && (i.pendingSync===true || (i.pendingSync===undefined && (ms(i.createdAt)>cloudTs||ms(i.updatedAt)>cloudTs)))) items.push(i);
+  const droppedLocalSubIds=new Set((state.subscriptions?localSubs:[]).filter(s=>subTombs.has(subKey(s))).map(s=>s.id));
+
+  // KATEGORIER: union per id minus tombstones. En kategori försvinner aldrig
+  // via synk – bara genom att raderas (tombstone).
+  const catTombs=new Set([...(state.deletedCats||[]),...((Array.isArray(data.deletedCats)?data.deletedCats:[]))]);
+  const pmap=new Map();
+  (Array.isArray(data.persons)?data.persons:[]).forEach(p=>{if(p&&p.id&&!catTombs.has(p.id))pmap.set(p.id,p);});
+  localPersons.forEach(p=>{if(p&&p.id&&!catTombs.has(p.id)){const ex=pmap.get(p.id);if(!ex||ms(p.updatedAt||0)>=ms(ex.updatedAt||0))pmap.set(p.id,p);}});
+  let persons=[...pmap.values()];
+  if(!persons.length)persons=(Array.isArray(data.persons)&&data.persons.length)?data.persons.slice():(state.persons||[]);
+  state.persons=persons;state.deletedCats=[...catTombs].slice(-2000);
+
+  // POSTER: union per id minus tombstones. Ingen post försvinner tyst via synk;
+  // borttagning sker bara explicit (tombstone). Vid konflikt (samma id) vinner
+  // nyast updatedAt. Feed-poster för borttagna prenumerationer tas bort.
+  const itemTombs=new Set([...(state.deletedItems||[]),...((Array.isArray(data.deletedItems)?data.deletedItems:[]))]);
+  const imap=new Map();
+  (Array.isArray(data.items)?data.items:[]).forEach(i=>{
+    if(!i||!i.id||itemTombs.has(i.id))return;
+    if(i.source==='feed'&&droppedLocalSubIds.has(i.feedId))return;
+    imap.set(i.id,i);
   });
-  state.items=items;
+  localItems.forEach(i=>{
+    if(!i||!i.id||itemTombs.has(i.id))return;
+    if(i.source==='feed'){ if(!imap.has(i.id)&&liveSubIds.has(i.feedId))imap.set(i.id,i); return; }
+    const ex=imap.get(i.id);
+    if(!ex){imap.set(i.id,i);}
+    else if(ms(i.updatedAt)>=ms(ex.updatedAt))imap.set(i.id,i);
+  });
+  state.items=[...imap.values()].filter(i=>!itemTombs.has(i.id));
+  state.deletedItems=[...itemTombs].slice(-8000);
+
   state.updatedAt=data.updatedAt||Date.now();
-  normalizePersons();normalizeItems();
+  normalizePersons();normalizeItems();normalizeSubscriptions();
   if(session.userId&&!state.persons.find(p=>p.id===session.userId)){session.userId=null;session.master=false;}
   saveLocal();refreshLockIfOpen();
 }
@@ -1526,19 +1597,19 @@ async function cloudInit(){
   try{
     const data=await cloudGet();
     if(cloudHasData(data)){
-      // Molnet trumfar lokalt vid inladdning – MEN prenumerationer (+ deras
-      // feed-poster) och osynkade manuella poster behålls (se applyCloud).
-      const cloudSubKeys=new Set((data.subscriptions||[]).map(s=>subKey(s)));
-      const cloudItemIds=new Set((data.items||[]).map(i=>i&&i.id));
+      // Union-merge (se applyCloud). Efter merge: om den sammanslagna vyn
+      // skiljer sig från molnet (lokal-bara poster/kategorier/prenumerationer,
+      // eller tombstones som tog bort molndata) – spara upp så molnet stämmer.
+      const cItemIds=new Set((data.items||[]).map(i=>i&&i.id));
+      const cPersonIds=new Set((data.persons||[]).map(p=>p&&p.id));
+      const cSubKeys=new Set((data.subscriptions||[]).map(s=>subKey(s)));
       applyCloud(data);
       if(!document.querySelector('#lockOverlay.show'))render();else refreshLockIfOpen();
-      // Om vi behöll lokal-bara data (prenumeration/poster) eller tog bort
-      // tombstonead data – spara upp så molnet stämmer med det som visas.
-      const localOnlySub=(state.subscriptions||[]).some(s=>!cloudSubKeys.has(subKey(s)));
-      const localOnlyItem=(state.items||[]).some(i=>!cloudItemIds.has(i.id));
-      const cloudLostSub=(data.subscriptions||[]).some(s=>s&&!state.subscriptions.find(x=>subKey(x)===subKey(s)));
-      const cloudLostItem=(data.items||[]).some(i=>i&&!state.items.find(x=>x.id===i.id));
-      if(localOnlySub||localOnlyItem||cloudLostSub||cloudLostItem){try{await cloudPut();}catch(e){}}
+      const diff=
+        (state.items||[]).length!==cItemIds.size || (state.items||[]).some(i=>!cItemIds.has(i.id)) ||
+        (state.persons||[]).length!==cPersonIds.size || (state.persons||[]).some(p=>!cPersonIds.has(p.id)) ||
+        (state.subscriptions||[]).length!==cSubKeys.size || (state.subscriptions||[]).some(s=>!cSubKeys.has(subKey(s)));
+      if(diff){try{await cloudPut();}catch(e){}}
     }else{
       // Molnet saknar data. Lägg bara upp om vi faktiskt har något att spara –
       // aldrig ett tomt seed (då skulle vi skapa en tom rad i onödan).
@@ -1595,6 +1666,7 @@ document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeEditor();closePerson();closeImport();}});
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('mousedown',e=>{if(e.target===o)o.classList.remove('show');}));
 $('#viewOnlyBtn').addEventListener('click',toggleViewOnly);
+bindSchedResize();
 
 load();applyTheme();updateViewOnlyBtn();_booted=true;
 render();
