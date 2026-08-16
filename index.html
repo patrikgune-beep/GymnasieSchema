@@ -309,7 +309,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.4.0";
+const APP_VERSION="2.4.1";
 const APP_BUILD="2026-08-13";
 const MASTER_CODE="333900";
 
@@ -461,9 +461,13 @@ function load(){
 }
 
 /* ---------- history + batches ---------- */
-function logHistory(action,item,details){
-  state.history.unshift({id:uid(),ts:new Date().toISOString(),action,itemId:item?item.id:null,
-    itemTitle:item?item.title:(details||''),by:'',details:details||''});
+// itemIds (valfritt): vilka poster raden avser, så att man kan radera dem från Ändringsloggen.
+function logHistory(action,item,details,itemIds){
+  const entry={id:uid(),ts:new Date().toISOString(),action,itemId:item?item.id:null,
+    itemTitle:item?item.title:(details||''),by:'',details:details||''};
+  if(Array.isArray(itemIds)&&itemIds.length)entry.itemIds=itemIds.slice();
+  else if(item&&item.id)entry.itemIds=[item.id];
+  state.history.unshift(entry);
   if(state.history.length>3000)state.history.length=3000;
 }
 // key: stabil nyckel för uppdateringar som ska ersätta varandra (t.ex. en
@@ -878,21 +882,37 @@ function renderHistory(main){
   // Ändringslogg – rader kan raderas var för sig
   const card=el('div',{class:'card full'});
   card.append(el('div',{style:'display:flex;align-items:center'},[el('h3',{style:'margin:0'},'Ändringslogg'),el('div',{style:'flex:1'}),
-    el('button',{class:'btn subtle sm',onclick:()=>{if(confirm('Rensa hela ändringsloggen? Poster/schema påverkas inte.')){state.history=[];save();renderMainOnly();}}},'Rensa hela loggen')]));
-  card.append(el('p',{class:'muted',style:'margin-top:0'},'Loggen visar alla ändringar. Du kan radera enskilda rader (påverkar bara loggen, inte poster/schema).'));
+    el('button',{class:'btn subtle sm',onclick:()=>{if(confirm('Rensa hela ändringsloggen? Endast loggen töms – aktiviteter/schema påverkas inte.')){state.history=[];save();renderMainOnly();}}},'Rensa hela loggen')]));
+  card.append(el('p',{class:'muted',style:'margin-top:0'},'Radera-knappen på en rad tar bort aktiviteten/aktiviteterna som raden avser (inte bara loggraden). Rader vars poster redan är borttagna tar bara bort själva loggraden. “Rensa hela loggen” tömmer bara loggen.'));
   if(!state.history.length)card.append(el('div',{class:'empty',style:'padding:20px'},'Ingen historik ännu.'));
   else state.history.slice(0,300).forEach(h=>{const d=new Date(h.ts);
+    const ids=(Array.isArray(h.itemIds)&&h.itemIds.length)?h.itemIds:(h.itemId?[h.itemId]:[]);
+    const existing=ids.filter(iid=>state.items.some(it=>it.id===iid)).length;
     card.append(el('div',{class:'hstep'},[
       el('span',{class:'act '+h.action},({create:'Skapad',update:'Ändrad',delete:'Borttagen',import:'Import'})[h.action]||h.action),
-      el('span',{},[el('strong',{},h.itemTitle||'(utan titel)'),h.details?el('span',{class:'muted'},' · '+h.details):null]),
+      el('span',{},[el('strong',{},h.itemTitle||'(utan titel)'),h.details?el('span',{class:'muted'},' · '+h.details):null,
+        existing?el('span',{class:'tag activity',style:'margin-left:6px'},`${existing} post${existing>1?'er':''}`):null]),
       el('span',{style:'flex:1'}),
       el('span',{class:'muted',style:'font-size:12px'},d.toLocaleString('sv-SE')),
-      el('button',{class:'icon-btn',title:'Radera denna rad',onclick:()=>deleteHistoryEntry(h.id)},'🗑')]));});
+      el('button',{class:'icon-btn',title:existing?`Radera ${existing} aktivitet(er) som raden avser`:'Ta bort loggraden',onclick:()=>deleteHistoryEntry(h.id)},'🗑')]));});
   main.appendChild(card);
 }
 function deleteHistoryEntry(id){
-  state.history=state.history.filter(h=>h.id!==id);
-  save();renderMainOnly();
+  const h=state.history.find(x=>x.id===id);if(!h)return;
+  const ids=(Array.isArray(h.itemIds)&&h.itemIds.length)?h.itemIds:(h.itemId?[h.itemId]:[]);
+  const existing=ids.filter(iid=>state.items.some(it=>it.id===iid));
+  if(existing.length){
+    if(!confirm(`Radera ${existing.length} aktivitet${existing.length>1?'er':''} som denna loggrad avser?\n\n”${h.itemTitle||h.details||''}”\n\nDetta tar bort själva aktiviteten/aktiviteterna, inte bara loggraden. Kan inte ångras.`))return;
+    const set=new Set(existing);
+    state.items=state.items.filter(it=>!set.has(it.id));
+    state.history=state.history.filter(x=>x.id!==id);
+    logHistory('delete',null,`${existing.length} aktivitet${existing.length>1?'er':''} raderade via Ändringsloggen`);
+    save();renderMainOnly();toast(`${existing.length} aktivitet${existing.length>1?'er':''} raderade`);
+  }else{
+    if(!confirm('Denna loggrad avser inga befintliga aktiviteter (redan borttagna eller ingen post kopplad). Ta bort själva loggraden?'))return;
+    state.history=state.history.filter(x=>x.id!==id);
+    save();renderMainOnly();
+  }
 }
 function resetAll(){
   if(!confirm('Radera ALL information (poster, historik, uppdateringar, kategorier) och börja om med ett tomt schema?\n\nDetta raderar även i molnet vid nästa synk och kan inte ångras.'))return;
@@ -1013,7 +1033,7 @@ function createItems(data,mode,until){
   const meta = isSeries ? {seriesId:sid,recurMode:mode,seriesStart:data.date,seriesUntil:until||dates[dates.length-1]} : {};
   dates.forEach(dt=>{const it=Object.assign({id:uid(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),source:data.source||'manual'},data,meta,{date:dt,pendingSync:true});state.items.push(it);created.push(it);});
   if(created.length===1)logHistory('create',created[0]);
-  else logHistory('create',null,`${data.title}: ${created.length} tillfällen (${recurLabel(mode)})`);
+  else logHistory('create',null,`${data.title}: ${created.length} tillfällen (${recurLabel(mode)})`,created.map(i=>i.id));
   save();return created;
 }
 
@@ -1135,7 +1155,7 @@ function saveFromEditor(){
       let extra='';
       if(newUntil && newUntil!==meta.until){ setSeriesUntil(editing.seriesId,newUntil,shared); extra=` · slutdatum ${newUntil}`; }
       const cnt=seriesItems(editing.seriesId).length;
-      logHistory('update',null,`Hela serien ändrad: ”${data.title}” (${cnt} tillfällen${extra})`);
+      logHistory('update',null,`Hela serien ändrad: ”${data.title}” (${cnt} tillfällen${extra})`,seriesItems(editing.seriesId).map(i=>i.id));
       save();toast(`Hela serien uppdaterad (${cnt} tillfällen)`);
     }else{
       // Enskild dag i en serie: markera som undantag så den skyddas vid senare serieändringar.
@@ -1270,12 +1290,12 @@ async function refreshSubscription(sub,opts={}){
     const text=await fetchFeedText(sub);const events=parseICS(text);const t=todayStr();
     const ids=new Set(feedFutureItems(sub.id).map(i=>i.id));state.items=state.items.filter(i=>!ids.has(i.id));
     // en enda batch per prenumeration (key) -> bara senaste uppdateringen behålls i historiken
-    const batchId=logBatch('feed',`Prenumeration ”${sub.name}” · ${personName(sub.personId)}`,0,sub.personId,'feed:'+sub.id);let n=0;
-    events.forEach(ev=>{if(!ev.date||ev.date<t)return;
-      state.items.push({id:uid(),type:'activity',title:ev.title,description:ev.description,date:ev.date,start:ev.start,end:ev.end,location:ev.location,personId:sub.personId,participants:[],shared:false,done:false,source:'feed',feedId:sub.id,batchId,createdBy:sub.personId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});n++;});
+    const batchId=logBatch('feed',`Prenumeration ”${sub.name}” · ${personName(sub.personId)}`,0,sub.personId,'feed:'+sub.id);let n=0;const newIds=[];
+    events.forEach(ev=>{if(!ev.date||ev.date<t)return;const nid=uid();
+      state.items.push({id:nid,type:'activity',title:ev.title,description:ev.description,date:ev.date,start:ev.start,end:ev.end,location:ev.location,personId:sub.personId,source:'feed',feedId:sub.id,batchId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});newIds.push(nid);n++;});
     const b=state.batches.find(x=>x.id===batchId);if(b)b.count=n;
     sub.lastSync=Date.now();sub.lastCount=n;sub.syncing=false;
-    logHistory('import',null,`Prenumeration ”${sub.name}”: ${n} poster uppdaterade`);
+    logHistory('import',null,`Prenumeration ”${sub.name}”: ${n} poster uppdaterade`,newIds);
     save();if(!opts.silent){render();toast(`Prenumeration uppdaterad: ${n} poster`);}return n;
   }catch(err){sub.lastError=err.message||String(err);sub.syncing=false;save();if(!opts.silent){renderMainOnly();toast('Kunde inte uppdatera: '+sub.lastError);}return -1;}
 }
@@ -1369,11 +1389,11 @@ function commitImport(){
   const kind=importSource==='image'?'image':(importFormat==='ics'?'ics':'csv');
   const srcTxt=importSource==='image'?'bild (OCR)':(importFormat==='ics'?'ICS-kalender':'CSV');
   // import taggas med kategori (forId) så den syns i historiken per kategori
-  const batchId=logBatch(kind,`Import från ${srcTxt} · ${personName(pid)}`,0,pid);let n=0;
-  importParsed.forEach(p=>{expandRecurrence(p.date,mode,until).forEach(dt=>{state.items.push({id:uid(),type:(p.type||'activity'),title:p.title,description:p.description,date:dt,start:p.start,end:p.end,location:p.location,personId:pid,participants:[],shared:false,done:false,source:src,batchId,createdBy:pid,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});n++;});});
+  const batchId=logBatch(kind,`Import från ${srcTxt} · ${personName(pid)}`,0,pid);let n=0;const newIds=[];
+  importParsed.forEach(p=>{expandRecurrence(p.date,mode,until).forEach(dt=>{const nid=uid();state.items.push({id:nid,type:(p.type||'activity'),title:p.title,description:p.description,date:dt,start:p.start,end:p.end,location:p.location,personId:pid,source:src,batchId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});newIds.push(nid);n++;});});
   const b=state.batches.find(x=>x.id===batchId);if(b)b.count=n;
   const recTxt=mode!=='none'?` (upprepning: ${recurLabel(mode)})`:'';
-  logHistory('import',null,`${n} poster importerade från ${srcTxt}${recTxt}`);
+  logHistory('import',null,`${n} poster importerade från ${srcTxt}${recTxt}`,newIds);
   save();closeImport();render();toast(removed?`${removed} tidigare borttagna, ${n} importerade`:`${n} poster importerade`);
 }
 
