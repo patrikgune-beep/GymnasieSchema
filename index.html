@@ -309,7 +309,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.2.0";
+const APP_VERSION="2.3.1";
 const APP_BUILD="2026-08-13";
 const MASTER_CODE="333900";
 
@@ -363,7 +363,7 @@ const LS_AUTH='gymnasieschema_auth';
 function defaultSettings(){return {dayStart:8,dayEnd:17,feedProxy:'',
   brand:{logo:'GS',logoImg:'',bg:'#eef2f6',heading:'#1c2733',accent:'#2563eb'}, sharedColor:'#7c3aed'};}
 let state = {
-  persons:[], items:[], history:[], batches:[], subscriptions:[],
+  persons:[], items:[], history:[], batches:[], subscriptions:[], deletedSubs:[],
   settings: defaultSettings(), updatedAt:0
 };
 // enhetslokal UI (synkas ej)
@@ -382,6 +382,9 @@ function personName(id){const p=catById(id);return p?p.name:'Okategoriserat';}
 function personColor(id){const p=catById(id);return p?p.color:'#94a3b8';}
 function personIcon(id){const p=catById(id);return p?(p.icon||initial(p.name)):'•';}
 function itemColor(it){return personColor(it.personId);}
+// stabil identitet för en prenumeration (URL är den naturliga nyckeln; id som reserv)
+function subKey(s){return s?(s.url?('u:'+s.url):(s.id?('i:'+s.id):null)):null;}
+function normalizeSubscriptions(){(state.subscriptions||[]).forEach(s=>{if(s&&!s.id)s.id='sub'+uid();});}
 
 /* ---------- inga behörigheter längre (ingen inloggning) ---------- */
 function canEdit(){return true;}
@@ -410,7 +413,7 @@ function applyTheme(){
 function saveLocal(){
   try{localStorage.setItem(LS_KEY,JSON.stringify({
     persons:state.persons,items:state.items,history:state.history,batches:state.batches,
-    subscriptions:state.subscriptions,settings:state.settings,updatedAt:state.updatedAt
+    subscriptions:state.subscriptions,deletedSubs:state.deletedSubs,settings:state.settings,updatedAt:state.updatedAt
   }));}catch(e){console.warn('save fail',e);}
 }
 function saveUI(){try{localStorage.setItem(LS_UI,JSON.stringify(ui));}catch(e){}}
@@ -447,10 +450,11 @@ function load(){
   if(typeof state.updatedAt!=='number')state.updatedAt=0;
   if(!Array.isArray(state.subscriptions))state.subscriptions=[];
   if(!Array.isArray(state.batches))state.batches=[];
+  if(!Array.isArray(state.deletedSubs))state.deletedSubs=[];
   if(!Array.isArray(state.history))state.history=[];
   if(!Array.isArray(state.items))state.items=[];
   if(!state.persons||!state.persons.length)seed();
-  normalizePersons();normalizeItems();
+  normalizePersons();normalizeItems();normalizeSubscriptions();
   try{const u=JSON.parse(localStorage.getItem(LS_UI)||'null');if(u)Object.assign(ui,u);}catch(e){}
   // öppna alltid appen på dagens vecka/dag (krav: landa i veckan som dagens datum ligger i)
   ui.monday=mondayOf(todayStr());ui.selectedDate=todayStr();ui.monthAnchor=firstOfMonth(todayStr());
@@ -1242,8 +1246,18 @@ async function refreshSubscription(sub,opts={}){
   }catch(err){sub.lastError=err.message||String(err);sub.syncing=false;save();if(!opts.silent){renderMainOnly();toast('Kunde inte uppdatera: '+sub.lastError);}return -1;}
 }
 async function refreshAllSubscriptions(silent){for(const sub of (state.subscriptions||[])){if(sub.active!==false)await refreshSubscription(sub,{silent});}}
-function saveSubscription(data){if(data.id){const s=state.subscriptions.find(x=>x.id===data.id);if(s)Object.assign(s,data);}else{state.subscriptions.push(Object.assign({id:uid(),active:true,lastSync:0,lastError:''},data));}save();}
-function deleteSubscription(subId,alsoItems){const sub=state.subscriptions.find(s=>s.id===subId);state.subscriptions=state.subscriptions.filter(s=>s.id!==subId);if(alsoItems){const ids=new Set(feedFutureItems(subId).map(i=>i.id));state.items=state.items.filter(i=>!ids.has(i.id));}logHistory('delete',null,`Prenumeration borttagen${sub?': ”'+sub.name+'”':''}`);save();render();}
+function saveSubscription(data){if(data.id){const s=state.subscriptions.find(x=>x.id===data.id);if(s)Object.assign(s,data);}else{state.subscriptions.push(Object.assign({active:true,lastSync:0,lastError:''},data,{id:'sub'+uid()}));}save();}
+function deleteSubscription(subId,alsoItems){
+  const sub=state.subscriptions.find(s=>s.id===subId);
+  if(!Array.isArray(state.deletedSubs))state.deletedSubs=[];
+  if(sub){const k=subKey(sub);if(k&&!state.deletedSubs.includes(k))state.deletedSubs.push(k);}   // tombstone (URL) – synkas, hindrar återuppståndelse
+  state.subscriptions=state.subscriptions.filter(s=>s.id!==subId);
+  // Att ta bort prenumerationen är enda sättet att ta bort prenumererat data:
+  // ta då bort ALLA dess poster (inte bara framtida).
+  state.items=state.items.filter(i=>i.feedId!==subId);
+  logHistory('delete',null,`Prenumeration borttagen${sub?': ”'+sub.name+'”':''}`);
+  save();render();
+}
 function startFeedAutoRefresh(){if(_feedTimer)return;_feedTimer=setInterval(()=>{if(!document.querySelector('.overlay.show'))refreshAllSubscriptions(true);},3*60*60*1000);}
 
 /* ============================================================ IMPORT CSV/ICS ============================================================ */
@@ -1405,16 +1419,43 @@ let _pushTimer=null,_pollStarted=false,_cloudStarted=false;
 function supaRestUrl(){return SUPA_URL.replace(/\/+$/,'')+'/rest/v1';}
 function cloudEnabled(){return /^https?:\/\//.test(SUPA_URL)&&SUPA_KEY.length>20;}
 function cloudHeaders(extra){return Object.assign({apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY,'Content-Type':'application/json'},extra||{});}
-function cloudData(){return {persons:state.persons,items:state.items.map(i=>{const j=Object.assign({},i);delete j.pendingSync;return j;}),history:state.history,batches:state.batches,subscriptions:state.subscriptions,settings:state.settings,updatedAt:state.updatedAt,app:'gymnasieschema',v:2};}
+function cloudData(){return {persons:state.persons,items:state.items.map(i=>{const j=Object.assign({},i);delete j.pendingSync;return j;}),history:state.history,batches:state.batches,subscriptions:state.subscriptions,deletedSubs:state.deletedSubs,settings:state.settings,updatedAt:state.updatedAt,app:'gymnasieschema',v:2};}
 function clearPendingSync(){let ch=false;(state.items||[]).forEach(i=>{if(i.pendingSync){delete i.pendingSync;ch=true;}});if(ch)saveLocal();}
 function applyCloud(data){
   if(!data)return;
+  const localItems=state.items||[];
+  const localSubs=state.subscriptions||[];
+  const localTombs=state.deletedSubs||[];
   if(Array.isArray(data.persons))state.persons=data.persons;
-  if(Array.isArray(data.items))state.items=data.items;
   if(Array.isArray(data.history))state.history=data.history;
   if(Array.isArray(data.batches))state.batches=data.batches;
-  if(Array.isArray(data.subscriptions))state.subscriptions=data.subscriptions;
   if(data.settings){const d=defaultSettings();state.settings=Object.assign({},d,data.settings);state.settings.brand=Object.assign({},d.brand,data.settings.brand||{});}
+  // PRENUMERATIONER: union av lokalt + moln (nyckel = URL), minus tombstones. En
+  // prenumeration försvinner ALDRIG via synk – tas bort endast genom att ta bort
+  // prenumerationen (vilket sätter en tombstone som synkas till alla enheter).
+  const cloudSubs=Array.isArray(data.subscriptions)?data.subscriptions:[];
+  const tombs=new Set([...(localTombs||[]),...((Array.isArray(data.deletedSubs)?data.deletedSubs:[]))]);
+  const subMap=new Map();
+  cloudSubs.forEach(s=>{const k=subKey(s);if(k&&!tombs.has(k))subMap.set(k,s);});
+  localSubs.forEach(s=>{const k=subKey(s);if(k&&!tombs.has(k))subMap.set(k,s);});   // lokal vinner vid samma URL
+  const mergedSubs=[...subMap.values()].map(s=>Object.assign({},s));
+  mergedSubs.forEach(s=>{if(!s.id)s.id='sub'+uid();});
+  state.subscriptions=mergedSubs;
+  state.deletedSubs=[...tombs].slice(-500);
+  const liveSubIds=new Set(mergedSubs.map(s=>s.id));
+  // feedId för lokala prenumerationsposter vars prenumeration tombstonats -> ska bort
+  const droppedLocalSubIds=new Set((localSubs||[]).filter(s=>tombs.has(subKey(s))).map(s=>s.id));
+  // POSTER: molnet trumfar, MEN behåll (a) prenumerationsposter (feed) för
+  // prenumerationer som finns kvar och (b) osynkade manuella poster.
+  let items=(Array.isArray(data.items)?data.items.slice():[]).filter(i=>!(i&&i.source==='feed'&&droppedLocalSubIds.has(i.feedId)));
+  const cloudIds=new Set(items.map(i=>i&&i.id));
+  const cloudTs=data.updatedAt||0;const ms=v=>{const t=Date.parse(v||'');return isNaN(t)?0:t;};
+  localItems.forEach(i=>{
+    if(!i||cloudIds.has(i.id))return;
+    if(i.source==='feed'){ if(liveSubIds.has(i.feedId))items.push(i); return; }
+    if(i.source==='manual' && (i.pendingSync===true || (i.pendingSync===undefined && (ms(i.createdAt)>cloudTs||ms(i.updatedAt)>cloudTs)))) items.push(i);
+  });
+  state.items=items;
   state.updatedAt=data.updatedAt||Date.now();
   normalizePersons();normalizeItems();
   if(session.userId&&!state.persons.find(p=>p.id===session.userId)){session.userId=null;session.master=false;}
@@ -1425,33 +1466,25 @@ async function cloudPut(){state.updatedAt=Date.now();const data=cloudData();cons
 function cloudSchedulePush(){if(!cloudEnabled()||!_booted)return;clearTimeout(_pushTimer);_pushTimer=setTimeout(async()=>{cloudSetStatus('saving');try{await cloudPut();cloudLastSync=Date.now();cloudSetStatus('ok');}catch(e){cloudSetStatus('offline');}},800);}
 async function cloudPull(rerender){if(!cloudEnabled())return false;const data=await cloudGet();if(data&&(data.updatedAt||0)>(state.updatedAt||0)){applyCloud(data);if(rerender&&!document.querySelector('.overlay.show'))render();cloudLastSync=Date.now();return true;}return false;}
 function cloudHasData(data){return !!(data && ((Array.isArray(data.persons)&&data.persons.length)||(Array.isArray(data.items)&&data.items.length)||(Array.isArray(data.subscriptions)&&data.subscriptions.length)||(Array.isArray(data.batches)&&data.batches.length)));}
-// Behåll lokalt skapade manuella poster som ännu inte hunnit synkas. De mergas
-// in i molnkopian (och pushas upp) så de blir en del av molndatat – utan att
-// återuppväcka poster som raderats på en annan enhet (endast poster skapade
-// efter molnets senaste tidsstämpel tas med).
-function mergeUnsyncedManual(cloudData){
-  if(!cloudData||!Array.isArray(cloudData.items))return 0;
-  const cloudIds=new Set(cloudData.items.map(i=>i&&i.id));
-  const cloudTs=cloudData.updatedAt||0;
-  const ms=v=>{const t=Date.parse(v||'');return isNaN(t)?0:t;};
-  const add=(state.items||[]).filter(i=>i && i.source==='manual' && !cloudIds.has(i.id) &&
-    (i.pendingSync===true || (i.pendingSync===undefined && (ms(i.createdAt)>cloudTs || ms(i.updatedAt)>cloudTs))));
-  if(add.length)cloudData.items=cloudData.items.concat(add.map(i=>Object.assign({},i)));
-  return add.length;
-}
 async function cloudInit(){
   if(!cloudEnabled()){cloudSetStatus('off');return;}
   cloudSetStatus('connecting');
   try{
     const data=await cloudGet();
     if(cloudHasData(data)){
-      // Molnet trumfar ALLTID lokalt vid inladdning (ny/rensad enhet får
-      // alltid molndatan). Undantag: lokalt skapade manuella poster som ännu
-      // inte synkats behålls och blir en del av molnet.
-      const merged=mergeUnsyncedManual(data);
+      // Molnet trumfar lokalt vid inladdning – MEN prenumerationer (+ deras
+      // feed-poster) och osynkade manuella poster behålls (se applyCloud).
+      const cloudSubKeys=new Set((data.subscriptions||[]).map(s=>subKey(s)));
+      const cloudItemIds=new Set((data.items||[]).map(i=>i&&i.id));
       applyCloud(data);
       if(!document.querySelector('#lockOverlay.show'))render();else refreshLockIfOpen();
-      if(merged>0){try{await cloudPut();}catch(e){}}   // de mergade posterna blir del av molnet
+      // Om vi behöll lokal-bara data (prenumeration/poster) eller tog bort
+      // tombstonead data – spara upp så molnet stämmer med det som visas.
+      const localOnlySub=(state.subscriptions||[]).some(s=>!cloudSubKeys.has(subKey(s)));
+      const localOnlyItem=(state.items||[]).some(i=>!cloudItemIds.has(i.id));
+      const cloudLostSub=(data.subscriptions||[]).some(s=>s&&!state.subscriptions.find(x=>subKey(x)===subKey(s)));
+      const cloudLostItem=(data.items||[]).some(i=>i&&!state.items.find(x=>x.id===i.id));
+      if(localOnlySub||localOnlyItem||cloudLostSub||cloudLostItem){try{await cloudPut();}catch(e){}}
     }else{
       // Molnet saknar data. Lägg bara upp om vi faktiskt har något att spara –
       // aldrig ett tomt seed (då skulle vi skapa en tom rad i onödan).
