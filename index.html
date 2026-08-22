@@ -334,7 +334,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.7.2";
+const APP_VERSION="2.7.3";
 const APP_BUILD="2026-08-13";
 const MASTER_CODE="333900";
 
@@ -764,7 +764,7 @@ function renderStart(main){
     titleI.value='';toast('✓ Skapad: '+title+' · '+longDate(date)+(start?' '+start:''));
   }},'＋ Skapa aktivitet');
   const goBtn=el('button',{class:'btn ghost',style:'flex:1 1 190px;justify-content:center;font-size:17px;padding:15px',onclick:()=>{
-    if(dateI.value){ui.selectedDate=dateI.value;ui.monday=mondayOf(dateI.value);}ui.tab='schedule';saveUI();render();enterFullscreen();
+    if(dateI.value){ui.selectedDate=dateI.value;ui.monday=mondayOf(dateI.value);}ui.tab='schedule';ui.view='workweek';saveUI();render();enterFullscreen();
   }},'⛶ Schema');
   btns.append(createBtn,goBtn);
   card.append(btns);
@@ -1829,7 +1829,7 @@ function refreshLockIfOpen(){}
 function startCloudOnce(){if(_cloudStarted)return;_cloudStarted=true;cloudInit();if(state.subscriptions&&state.subscriptions.length)setTimeout(()=>refreshAllSubscriptions(true).then(()=>{if(ui.tab==='schedule'||ui.tab==='list')render();}),1500);startFeedAutoRefresh();}
 
 /* ============================================================ BOOT ============================================================ */
-document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>{ui.tab=b.dataset.tab;saveUI();render();}));
+document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>{ui.tab=b.dataset.tab;if(ui.tab==='schedule')ui.view='workweek';saveUI();render();}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(document.querySelector('.overlay.show')){closeEditor();closePerson();closeImport();}else if(fullscreenMode){exitFullscreen();}}});
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('mousedown',e=>{if(e.target===o)o.classList.remove('show');}));
 $('#viewOnlyBtn').addEventListener('click',toggleViewOnly);
