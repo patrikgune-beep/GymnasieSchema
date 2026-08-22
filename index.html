@@ -64,6 +64,13 @@
 
   main{max-width:1400px;margin:0 auto;padding:16px calc(16px + var(--safe-r)) calc(60px + var(--safe-b)) calc(16px + var(--safe-l))}
 
+  /* Startsida: blå bakgrund, dolda flikar – bara startsidan visas */
+  body.startbg{background:linear-gradient(165deg,#1e3a8a 0%,#2563eb 48%,#0ea5e9 100%);background-attachment:fixed}
+  body.startbg header.app{background:rgba(255,255,255,.94);backdrop-filter:saturate(1.2) blur(4px)}
+  body.startbg #tabs{display:none}
+  body.startbg .start-h{color:#fff}
+  body.startbg .start-sub{color:rgba(255,255,255,.85)}
+
   .btn{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 15px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;min-height:42px}
   .btn:hover{background:var(--accent-dark)}
   .btn.ghost{background:#fff;color:var(--accent);border:1.5px solid var(--accent)}
@@ -312,7 +319,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.6.0";
+const APP_VERSION="2.6.1";
 const APP_BUILD="2026-08-13";
 const MASTER_CODE="333900";
 
@@ -552,6 +559,7 @@ function render(){
   const main=$('#main');main.innerHTML='';
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===ui.tab));
   if(ui.tab==='shared')ui.tab='schedule';
+  document.body.classList.toggle('startbg', ui.tab==='start');
   if(ui.tab==='start')renderStart(main);
   else if(ui.tab==='schedule')renderSchedule(main);
   else if(ui.tab==='tasks')renderTasks(main);
@@ -632,41 +640,44 @@ function navBar(){
 }
 
 /* ============================================================ STARTSIDA (förenklad snabbskapa) ============================================================ */
+function durLabel(min){const h=Math.floor(min/60),m=min%60;return (h?`${h} tim`:'')+(h&&m?' ':'')+(m?`${m} min`:'')||'0 min';}
 function renderStart(main){
-  const wrap=el('div',{style:'max-width:640px;margin:0 auto'});
-  wrap.append(el('h2',{style:'text-align:center;color:var(--heading);margin:8px 0 2px;font-size:22px'},'Snabbskapa aktivitet'));
-  wrap.append(el('p',{class:'muted',style:'text-align:center;margin-top:0'},'Välj datum, tider och kategori och tryck Skapa. Eller öppna hela Schemat.'));
-  const card=el('div',{class:'card',style:'margin-top:12px'});
+  const wrap=el('div',{style:'max-width:560px;margin:8px auto'});
+  wrap.append(el('h2',{class:'start-h',style:'text-align:center;margin:8px 0 2px;font-size:24px'},'Snabbskapa aktivitet'));
+  wrap.append(el('p',{class:'start-sub',style:'text-align:center;margin-top:0'},'Datum, starttid, längd och kategori – tryck Skapa.'));
+  const card=el('div',{class:'card',style:'margin-top:14px'});
 
   const titleI=el('input',{class:'f',type:'text',placeholder:'Titel (valfritt – annars kategorinamnet)',style:'width:100%;font-size:17px;padding:14px'});
   card.append(labelWrap('Aktivitet',titleI));
 
   const dateI=el('input',{class:'f',type:'date',value:ui.startDate||todayStr(),style:'width:100%;font-size:16px;padding:13px'});
   const startI=el('input',{class:'f',type:'time',value:ui.startT||'',style:'width:100%;font-size:16px;padding:13px'});
-  const endI=el('input',{class:'f',type:'time',value:ui.endT||'',style:'width:100%;font-size:16px;padding:13px'});
-  const row=el('div',{class:'row3'});row.append(labelWrap('Datum',dateI),labelWrap('Starttid',startI),labelWrap('Sluttid',endI));
+  // Längd i halvtimmessteg (30 min – 8 tim)
+  const durSel=el('select',{class:'f',style:'width:100%;font-size:16px;padding:13px'});
+  const curDur=(typeof ui.startDur==='number')?ui.startDur:60;
+  for(let mmin=30;mmin<=480;mmin+=30){const o=el('option',{value:mmin},durLabel(mmin));if(mmin===curDur)o.selected=true;durSel.appendChild(o);}
+  const row=el('div',{class:'row3'});row.append(labelWrap('Datum',dateI),labelWrap('Starttid',startI),labelWrap('Längd',durSel));
   card.append(row);
 
-  let selCat=(ui.startCat&&catById(ui.startCat))?ui.startCat:activeOwner();
-  const catWrap=el('div',{style:'display:flex;gap:10px;flex-wrap:wrap;margin-top:2px'});
-  function drawCats(){catWrap.innerHTML='';state.persons.forEach(p=>{const on=p.id===selCat;
-    catWrap.appendChild(el('button',{style:`display:inline-flex;align-items:center;gap:8px;border:2px solid ${on?p.color:'var(--line)'};background:${on?p.color:'#fff'};color:${on?'#fff':'var(--ink)'};border-radius:999px;padding:11px 16px;font-size:15px;font-weight:600;cursor:pointer;min-height:48px`,
-      onclick:e=>{e.preventDefault();selCat=p.id;ui.startCat=p.id;saveUI();drawCats();}},[el('span',{style:'font-size:17px'},p.icon||''),p.name]));});}
-  drawCats();
-  card.append(labelWrap('Kategori',catWrap));
+  // Kategori som drop-down
+  const catSel=el('select',{class:'f',style:'width:100%;font-size:16px;padding:13px'});
+  const selCat0=(ui.startCat&&catById(ui.startCat))?ui.startCat:activeOwner();
+  state.persons.forEach(p=>{const o=el('option',{value:p.id},(p.icon?p.icon+' ':'')+p.name);if(p.id===selCat0)o.selected=true;catSel.appendChild(o);});
+  catSel.onchange=()=>{ui.startCat=catSel.value;saveUI();};
+  card.append(labelWrap('Kategori',catSel));
 
   const btns=el('div',{style:'display:flex;gap:10px;flex-wrap:wrap;margin-top:16px'});
   const createBtn=el('button',{class:'btn',style:'flex:1 1 220px;justify-content:center;font-size:17px;padding:15px',onclick:()=>{
     if(ui.viewOnly){toast('Visningsläge är på – slå av ögat för att skapa');return;}
-    const date=dateI.value||todayStr();const start=startI.value||'';let end=endI.value||'';
-    if(start&&end&&toMin(end)<=toMin(start))end=fromMin(toMin(start)+45);
-    const cat=(catById(selCat)?selCat:activeOwner());
+    const date=dateI.value||todayStr();const start=startI.value||'';const dur=Number(durSel.value)||60;
+    const end=start?fromMin(clamp(toMin(start)+dur,0,24*60-1)):'';
+    const cat=(catById(catSel.value)?catSel.value:activeOwner());
     let title=titleI.value.trim();if(!title)title=(catById(cat)||{}).name||'Aktivitet';
     createItems({source:'manual',type:'activity',title,description:'',date,start,end,location:'',personId:cat,done:false},'none',null);
-    ui.startDate=date;ui.startT=start;ui.endT=end;ui.startCat=cat;saveUI();
+    ui.startDate=date;ui.startT=start;ui.startDur=dur;ui.startCat=cat;saveUI();
     titleI.value='';toast('✓ Skapad: '+title+' · '+longDate(date)+(start?' '+start:''));
   }},'＋ Skapa aktivitet');
-  const goBtn=el('button',{class:'btn ghost',style:'flex:1 1 200px;justify-content:center;font-size:17px;padding:15px',onclick:()=>{
+  const goBtn=el('button',{class:'btn ghost',style:'flex:1 1 190px;justify-content:center;font-size:17px;padding:15px',onclick:()=>{
     if(dateI.value){ui.selectedDate=dateI.value;ui.monday=mondayOf(dateI.value);}ui.view='day';ui.tab='schedule';saveUI();render();
   }},'Öppna Schemat →');
   btns.append(createBtn,goBtn);
