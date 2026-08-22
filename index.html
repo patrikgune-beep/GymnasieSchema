@@ -334,7 +334,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.8.1";
+const APP_VERSION="2.8.2";
 const APP_BUILD="2026-08-22";
 const MASTER_CODE="333900";
 
@@ -1314,7 +1314,7 @@ function quickAdd(date,start,ownerId){if(ui.viewOnly||fullscreenMode)return;open
 function openEditor(item){
   editing = item && item.id ? item : null;
   const readOnly = ui.viewOnly;
-  const i = item || {type:'activity',date:(ui.view==='day'?ui.selectedDate:ui.monday),start:'',end:'',personId:activeOwner()};
+  const i = item || {type:'activity',date:todayStr(),start:'',end:'',personId:activeOwner()};
   $('#editorTitle').textContent = editing?(readOnly?'Visa post':'Redigera post'):'Ny post';
   $('#editorDelete').style.display = (editing&&!readOnly)?'':'none';
   $('#editorDelete').textContent='Ta bort';
@@ -1333,10 +1333,12 @@ function openEditor(item){
     field('location','Plats','text',i.location||'',{placeholder:'t.ex. Gymmet'}),
     labelWrap('Beskrivning',el('textarea',{id:'f_description',placeholder:'Detaljer, länkar, anteckningar…'},i.description||'')));
   const r1=el('div',{class:'row2'});
-  r1.append(field('date','Startdag','date',i.date||ui.selectedDate),field('start','Starttid','time',i.start||''));
+  r1.append(field('date','Startdag','date',i.date||todayStr()),field('start','Starttid','time',i.start||''));
   b.appendChild(r1);
   const r2=el('div',{class:'row2'});
-  r2.append(field('enddate','Slutdag (valfritt)','date',i.endDate||''),field('end','Sluttid','time',i.end||''));
+  // Ny aktivitet: förifyll Slutdag med startdagen (dagens datum) så båda syns direkt; ändras vid behov.
+  const endDefault = i.endDate || (editing ? '' : (i.date||todayStr()));
+  r2.append(field('enddate','Slutdag','date',endDefault),field('end','Sluttid','time',i.end||''));
   b.appendChild(r2);
   b.appendChild(el('div',{class:'hint'},'Ange en slutdag för att sträcka aktiviteten över flera dagar. Lämna tomt för en endagsaktivitet.'));
   b.appendChild(labelWrap('Kategori',personSelect(i.personId||activeOwner())));
