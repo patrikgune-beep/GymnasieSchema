@@ -245,7 +245,8 @@
     </div>
   </div>
   <nav class="tabs" id="tabs">
-    <button data-tab="schedule" class="active">Schema</button>
+    <button data-tab="start" class="active">Start</button>
+    <button data-tab="schedule">Schema</button>
     <button data-tab="tasks">Uppgifter</button>
     <button data-tab="list">Lista</button>
     <button data-tab="history">Historik</button>
@@ -311,7 +312,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.5.0";
+const APP_VERSION="2.6.0";
 const APP_BUILD="2026-08-13";
 const MASTER_CODE="333900";
 
@@ -427,7 +428,7 @@ function persist(item){ save(); }
 function loadAuth(){try{const a=JSON.parse(localStorage.getItem(LS_AUTH)||'null');if(a){session.userId=a.userId||null;session.master=!!a.master;}}catch(e){}}
 function saveAuth(){try{localStorage.setItem(LS_AUTH,JSON.stringify({userId:session.userId,master:session.master}));}catch(e){}}
 
-const DEFAULT_CATEGORIES=[['Transport','#0891b2','🚗'],['Läxor','#7c3aed','📚'],['Jobba','#2563eb','💼'],['Träna','#16a34a','🏃']];
+const DEFAULT_CATEGORIES=[['Transport','#0891b2','🚗'],['Läxor','#7c3aed','📚'],['Jobba','#2563eb','💼'],['Träna','#16a34a','🏃'],['Övrigt','#64748b','📌']];
 function seed(){
   state.persons=DEFAULT_CATEGORIES.map(([name,color,icon])=>({id:uid(),name,color,icon,visible:true}));
   // VIKTIGT: bumpa INTE updatedAt här. Ett tomt seed får aldrig se "nyare" ut än
@@ -461,8 +462,16 @@ function load(){
   if(!Array.isArray(state.items))state.items=[];
   if(!state.persons||!state.persons.length)seed();
   normalizePersons();normalizeItems();normalizeSubscriptions();
+  // engångs: se till att kategorin "Övrigt" finns (även för äldre installationer).
+  // Namnvakt hindrar dubbletter; flaggan hindrar att den återkommer om den raderats.
+  if(!state.settings.ovrigtSeeded){
+    if(!state.persons.some(p=>(p.name||'').trim().toLowerCase()==='övrigt'))
+      state.persons.push({id:uid(),name:'Övrigt',color:'#64748b',icon:'📌',visible:true});
+    state.settings.ovrigtSeeded=true;
+  }
   try{const u=JSON.parse(localStorage.getItem(LS_UI)||'null');if(u)Object.assign(ui,u);}catch(e){}
-  // öppna alltid appen på dagens vecka/dag (krav: landa i veckan som dagens datum ligger i)
+  // startsida vid varje öppning + landa på dagens vecka/dag
+  ui.tab='start';
   ui.monday=mondayOf(todayStr());ui.selectedDate=todayStr();ui.monthAnchor=firstOfMonth(todayStr());
 }
 
@@ -543,7 +552,8 @@ function render(){
   const main=$('#main');main.innerHTML='';
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===ui.tab));
   if(ui.tab==='shared')ui.tab='schedule';
-  if(ui.tab==='schedule')renderSchedule(main);
+  if(ui.tab==='start')renderStart(main);
+  else if(ui.tab==='schedule')renderSchedule(main);
   else if(ui.tab==='tasks')renderTasks(main);
   else if(ui.tab==='list')renderList(main);
   else if(ui.tab==='history')renderHistory(main);
@@ -619,6 +629,51 @@ function navBar(){
   }
   bar.append(el('div',{class:'grow'}),viewSeg());
   return bar;
+}
+
+/* ============================================================ STARTSIDA (förenklad snabbskapa) ============================================================ */
+function renderStart(main){
+  const wrap=el('div',{style:'max-width:640px;margin:0 auto'});
+  wrap.append(el('h2',{style:'text-align:center;color:var(--heading);margin:8px 0 2px;font-size:22px'},'Snabbskapa aktivitet'));
+  wrap.append(el('p',{class:'muted',style:'text-align:center;margin-top:0'},'Välj datum, tider och kategori och tryck Skapa. Eller öppna hela Schemat.'));
+  const card=el('div',{class:'card',style:'margin-top:12px'});
+
+  const titleI=el('input',{class:'f',type:'text',placeholder:'Titel (valfritt – annars kategorinamnet)',style:'width:100%;font-size:17px;padding:14px'});
+  card.append(labelWrap('Aktivitet',titleI));
+
+  const dateI=el('input',{class:'f',type:'date',value:ui.startDate||todayStr(),style:'width:100%;font-size:16px;padding:13px'});
+  const startI=el('input',{class:'f',type:'time',value:ui.startT||'',style:'width:100%;font-size:16px;padding:13px'});
+  const endI=el('input',{class:'f',type:'time',value:ui.endT||'',style:'width:100%;font-size:16px;padding:13px'});
+  const row=el('div',{class:'row3'});row.append(labelWrap('Datum',dateI),labelWrap('Starttid',startI),labelWrap('Sluttid',endI));
+  card.append(row);
+
+  let selCat=(ui.startCat&&catById(ui.startCat))?ui.startCat:activeOwner();
+  const catWrap=el('div',{style:'display:flex;gap:10px;flex-wrap:wrap;margin-top:2px'});
+  function drawCats(){catWrap.innerHTML='';state.persons.forEach(p=>{const on=p.id===selCat;
+    catWrap.appendChild(el('button',{style:`display:inline-flex;align-items:center;gap:8px;border:2px solid ${on?p.color:'var(--line)'};background:${on?p.color:'#fff'};color:${on?'#fff':'var(--ink)'};border-radius:999px;padding:11px 16px;font-size:15px;font-weight:600;cursor:pointer;min-height:48px`,
+      onclick:e=>{e.preventDefault();selCat=p.id;ui.startCat=p.id;saveUI();drawCats();}},[el('span',{style:'font-size:17px'},p.icon||''),p.name]));});}
+  drawCats();
+  card.append(labelWrap('Kategori',catWrap));
+
+  const btns=el('div',{style:'display:flex;gap:10px;flex-wrap:wrap;margin-top:16px'});
+  const createBtn=el('button',{class:'btn',style:'flex:1 1 220px;justify-content:center;font-size:17px;padding:15px',onclick:()=>{
+    if(ui.viewOnly){toast('Visningsläge är på – slå av ögat för att skapa');return;}
+    const date=dateI.value||todayStr();const start=startI.value||'';let end=endI.value||'';
+    if(start&&end&&toMin(end)<=toMin(start))end=fromMin(toMin(start)+45);
+    const cat=(catById(selCat)?selCat:activeOwner());
+    let title=titleI.value.trim();if(!title)title=(catById(cat)||{}).name||'Aktivitet';
+    createItems({source:'manual',type:'activity',title,description:'',date,start,end,location:'',personId:cat,done:false},'none',null);
+    ui.startDate=date;ui.startT=start;ui.endT=end;ui.startCat=cat;saveUI();
+    titleI.value='';toast('✓ Skapad: '+title+' · '+longDate(date)+(start?' '+start:''));
+  }},'＋ Skapa aktivitet');
+  const goBtn=el('button',{class:'btn ghost',style:'flex:1 1 200px;justify-content:center;font-size:17px;padding:15px',onclick:()=>{
+    if(dateI.value){ui.selectedDate=dateI.value;ui.monday=mondayOf(dateI.value);}ui.view='day';ui.tab='schedule';saveUI();render();
+  }},'Öppna Schemat →');
+  btns.append(createBtn,goBtn);
+  card.append(btns);
+  if(ui.viewOnly)card.append(el('p',{class:'hint',style:'margin-top:8px'},'👁 Visningsläge är på – skapa är avstängt. Slå av ögat uppe till höger.'));
+  wrap.append(card);
+  main.append(wrap);
 }
 
 /* ============================================================ SCHEMA (dag/vecka/månad) ============================================================ */
