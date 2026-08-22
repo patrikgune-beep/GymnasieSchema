@@ -334,7 +334,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.7.0";
+const APP_VERSION="2.7.1";
 const APP_BUILD="2026-08-13";
 const MASTER_CODE="333900";
 
@@ -468,6 +468,20 @@ function normalizePersons(){
 function normalizeItems(){
   (state.items||[]).forEach(i=>{if(i.shared)i.shared=false;});
 }
+// Ta bort dubbletter bland prenumerationsposter (feed). Union-synken kan annars
+// samla på sig gamla+nya feed-poster (nya id vid varje uppdatering). Innehåll
+// (titel+datum+tid+kategori) avgör identitet, oavsett id.
+function dedupeFeedItems(){
+  const seen=new Set();const keep=[];let removed=0;
+  for(const i of (state.items||[])){
+    if(!i||i.source!=='feed'){keep.push(i);continue;}
+    const k=(i.title||'')+'§'+(i.date||'')+'§'+(i.start||'')+'§'+(i.end||'')+'§'+(i.personId||'')+'§'+(i.location||'');
+    if(seen.has(k)){removed++;continue;}
+    seen.add(k);keep.push(i);
+  }
+  if(removed)state.items=keep;
+  return removed;
+}
 function load(){
   let raw=null;
   try{raw=localStorage.getItem(LS_KEY);if(raw){const p=JSON.parse(raw);Object.assign(state,p);}}catch(e){console.warn('load fail',e);}
@@ -483,7 +497,7 @@ function load(){
   if(!Array.isArray(state.history))state.history=[];
   if(!Array.isArray(state.items))state.items=[];
   if(!state.persons||!state.persons.length)seed();
-  normalizePersons();normalizeItems();normalizeSubscriptions();
+  normalizePersons();normalizeItems();normalizeSubscriptions();dedupeFeedItems();
   // engångs: se till att kategorin "Övrigt" finns (även för äldre installationer).
   // Namnvakt hindrar dubbletter; flaggan hindrar att den återkommer om den raderats.
   if(!state.settings.ovrigtSeeded){
@@ -491,6 +505,7 @@ function load(){
       state.persons.push({id:uid(),name:'Övrigt',color:'#64748b',icon:'📌',visible:true});
     state.settings.ovrigtSeeded=true;
   }
+  saveLocal();   // persistera normalisering (dedup, Övrigt, id-backfill) utan att bumpa updatedAt
   try{const u=JSON.parse(localStorage.getItem(LS_UI)||'null');if(u)Object.assign(ui,u);}catch(e){}
   // startsida vid varje öppning + landa på dagens vecka/dag
   ui.tab='start';
@@ -753,6 +768,10 @@ function renderStart(main){
   }},'Öppna Schemat →');
   btns.append(createBtn,goBtn);
   card.append(btns);
+  // Öppna schemat direkt i helskärm
+  card.append(el('button',{class:'btn subtle',style:'width:100%;justify-content:center;font-size:16px;padding:13px;margin-top:10px',onclick:()=>{
+    if(dateI.value){ui.selectedDate=dateI.value;ui.monday=mondayOf(dateI.value);}ui.tab='schedule';saveUI();render();enterFullscreen();
+  }},'⛶ Öppna schema i helskärm'));
   if(ui.viewOnly)card.append(el('p',{class:'hint',style:'margin-top:8px'},'👁 Visningsläge är på – skapa är avstängt. Slå av ögat uppe till höger.'));
   wrap.append(card);
   main.append(wrap);
@@ -1457,6 +1476,7 @@ function renderSubscriptionsCard(){
 }
 let _feedTimer=null;
 function normFeedUrl(u){return (u||'').trim().replace(/^webcal:\/\//i,'https://');}
+function hash32(s){let h=5381;s=String(s||'');for(let i=0;i<s.length;i++){h=((h<<5)+h)+s.charCodeAt(i);h|=0;}return (h>>>0).toString(36);}
 const FEED_PROXIES=[u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),u=>'https://corsproxy.io/?url='+encodeURIComponent(u),u=>'https://thingproxy.freeboard.io/fetch/'+u];
 async function fetchCalendarFrom(url){const r=await fetch(url,{headers:{'Accept':'text/calendar, text/plain, */*'}});if(!r.ok)throw new Error('HTTP '+r.status);const txt=await r.text();if(!/BEGIN:VCALENDAR/i.test(txt))throw new Error('Svaret ser inte ut som en iCal-feed (saknar VCALENDAR).');return txt;}
 async function fetchFeedText(sub){
@@ -1471,11 +1491,19 @@ async function refreshSubscription(sub,opts={}){
   sub.lastError='';sub.syncing=true;if(!opts.silent)renderMainOnly();
   try{
     const text=await fetchFeedText(sub);const events=parseICS(text);const t=todayStr();
-    const ids=new Set(feedFutureItems(sub.id).map(i=>i.id));state.items=state.items.filter(i=>!ids.has(i.id));
+    const url=normFeedUrl(sub.url);
+    // ta bort denna prenumerations framtida poster – matcha både feedId och feedUrl
+    // (union-merge kan ge poster med annat feedId men samma URL) så inga blir kvar.
+    const rmIds=new Set(state.items.filter(i=>i.source==='feed'&&i.date&&i.date>=t&&(i.feedId===sub.id||i.feedUrl===url)).map(i=>i.id));
+    state.items=state.items.filter(i=>!rmIds.has(i.id));
     // en enda batch per prenumeration (key) -> bara senaste uppdateringen behålls i historiken
-    const batchId=logBatch('feed',`Prenumeration ”${sub.name}” · ${personName(sub.personId)}`,0,sub.personId,'feed:'+sub.id);let n=0;const newIds=[];
-    events.forEach(ev=>{if(!ev.date||ev.date<t)return;const nid=uid();
-      state.items.push({id:nid,type:'activity',title:ev.title,description:ev.description,date:ev.date,start:ev.start,end:ev.end,location:ev.location,personId:sub.personId,source:'feed',feedId:sub.id,batchId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});newIds.push(nid);n++;});
+    const batchId=logBatch('feed',`Prenumeration ”${sub.name}” · ${personName(sub.personId)}`,0,sub.personId,'feed:'+sub.id);let n=0;const newIds=[];const seen=new Set();
+    events.forEach(ev=>{if(!ev.date||ev.date<t)return;
+      // stabilt id per URL+händelse -> union dedupar och uppdateringar samlar inte på sig dubbletter
+      const fid='fd_'+hash32(url+'|'+(ev.uid||'')+'|'+ev.date+'|'+ev.start+'|'+ev.end+'|'+ev.title);
+      if(seen.has(fid))return;seen.add(fid);
+      state.items.push({id:fid,type:'activity',title:ev.title,description:ev.description,date:ev.date,start:ev.start,end:ev.end,location:ev.location,personId:sub.personId,source:'feed',feedId:sub.id,feedUrl:url,batchId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});newIds.push(fid);n++;});
+    dedupeFeedItems();
     const b=state.batches.find(x=>x.id===batchId);if(b)b.count=n;
     sub.lastSync=Date.now();sub.lastCount=n;sub.syncing=false;
     logHistory('import',null,`Prenumeration ”${sub.name}”: ${n} poster uppdaterade`,newIds);
@@ -1488,11 +1516,14 @@ function deleteSubscription(subId,alsoItems){
   const sub=state.subscriptions.find(s=>s.id===subId);
   if(!Array.isArray(state.deletedSubs))state.deletedSubs=[];
   if(sub){const k=subKey(sub);if(k&&!state.deletedSubs.includes(k))state.deletedSubs.push(k);}   // tombstone (URL) – synkas, hindrar återuppståndelse
+  const url=sub?normFeedUrl(sub.url):null;
   state.subscriptions=state.subscriptions.filter(s=>s.id!==subId);
   // Att ta bort prenumerationen är enda sättet att ta bort prenumererat data:
-  // ta då bort ALLA dess poster (inte bara framtida) och tombstona dem.
-  tombstoneItems(state.items.filter(i=>i.feedId===subId).map(i=>i.id));
-  state.items=state.items.filter(i=>i.feedId!==subId);
+  // ta då bort ALLA dess poster (matcha feedId och feedUrl) och tombstona dem.
+  const victims=state.items.filter(i=>i.source==='feed'&&(i.feedId===subId||(url&&i.feedUrl===url)));
+  tombstoneItems(victims.map(i=>i.id));
+  const vset=new Set(victims.map(i=>i.id));
+  state.items=state.items.filter(i=>!vset.has(i.id));
   logHistory('delete',null,`Prenumeration borttagen${sub?': ”'+sub.name+'”':''}`);
   save();render();
 }
@@ -1558,7 +1589,7 @@ function parseICS(text){
   for(const ln of raw){if(lines.length&&(ln.startsWith(' ')||ln.startsWith('\t')))lines[lines.length-1]+=ln.slice(1);else lines.push(ln);}
   const events=[];let cur=null;
   for(const ln of lines){const t=ln.trim();if(t==='BEGIN:VEVENT'){cur={};continue;}if(t==='END:VEVENT'){if(cur)events.push(cur);cur=null;continue;}if(!cur)continue;const ci=ln.indexOf(':');if(ci<0)continue;const left=ln.slice(0,ci),val=ln.slice(ci+1);const semi=left.indexOf(';');const name=(semi<0?left:left.slice(0,semi)).toUpperCase().trim();const params={};if(semi>=0)left.slice(semi+1).split(';').forEach(pr=>{const eq=pr.indexOf('=');if(eq>=0)params[pr.slice(0,eq).toUpperCase()]=pr.slice(eq+1);});if(!(name in cur))cur[name]={val,params};}
-  const out=[];events.forEach(ev=>{const title=ev.SUMMARY?unescapeICS(ev.SUMMARY.val).trim():'';if(!title)return;const s=parseICSDateTime(ev.DTSTART);if(!s||!s.date)return;const e=ev.DTEND?parseICSDateTime(ev.DTEND):null;const start=s.allday?'':s.time;const end=s.allday?'':(e&&e.date===s.date?e.time:'');out.push({title,date:s.date,start,end,location:ev.LOCATION?unescapeICS(ev.LOCATION.val).trim():'',description:[ev.DESCRIPTION?unescapeICS(ev.DESCRIPTION.val).trim():'',ev.CATEGORIES?('Kategori: '+unescapeICS(ev.CATEGORIES.val).trim()):''].filter(Boolean).join('\n')});});
+  const out=[];events.forEach(ev=>{const title=ev.SUMMARY?unescapeICS(ev.SUMMARY.val).trim():'';if(!title)return;const s=parseICSDateTime(ev.DTSTART);if(!s||!s.date)return;const e=ev.DTEND?parseICSDateTime(ev.DTEND):null;const start=s.allday?'':s.time;const end=s.allday?'':(e&&e.date===s.date?e.time:'');out.push({title,date:s.date,start,end,uid:ev.UID?unescapeICS(ev.UID.val).trim():'',location:ev.LOCATION?unescapeICS(ev.LOCATION.val).trim():'',description:[ev.DESCRIPTION?unescapeICS(ev.DESCRIPTION.val).trim():'',ev.CATEGORIES?('Kategori: '+unescapeICS(ev.CATEGORIES.val).trim()):''].filter(Boolean).join('\n')});});
   out.sort((a,b)=>a.date.localeCompare(b.date)||(toMin(a.start)??1e9)-(toMin(b.start)??1e9));return out;
 }
 function csvItemsForPerson(pid){return state.items.filter(i=>(i.source==='outlook'||i.source==='ics'||i.source==='image')&&i.personId===pid);}
@@ -1722,7 +1753,7 @@ function applyCloud(data){
   state.deletedItems=[...itemTombs].slice(-8000);
 
   state.updatedAt=data.updatedAt||Date.now();
-  normalizePersons();normalizeItems();normalizeSubscriptions();
+  normalizePersons();normalizeItems();normalizeSubscriptions();dedupeFeedItems();
   if(session.userId&&!state.persons.find(p=>p.id===session.userId)){session.userId=null;session.master=false;}
   saveLocal();refreshLockIfOpen();
 }
