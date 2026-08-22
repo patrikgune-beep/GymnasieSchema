@@ -64,6 +64,15 @@
 
   main{max-width:1400px;margin:0 auto;padding:16px calc(16px + var(--safe-r)) calc(60px + var(--safe-b)) calc(16px + var(--safe-l))}
 
+  /* Helskärm: endast schemat (dagar & timmar) */
+  #fsOverlay{position:fixed;inset:0;z-index:95;background:var(--bg);display:none;flex-direction:column;
+    padding-top:var(--safe-t);padding-bottom:var(--safe-b);padding-left:var(--safe-l);padding-right:var(--safe-r)}
+  #fsOverlay.show{display:flex}
+  #fsBar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap;flex:0 0 auto}
+  #fsBody{flex:1 1 auto;overflow:auto;-webkit-overflow-scrolling:touch;padding:8px 10px;min-height:0}
+  #fsBody .grid-wrap{border:none;box-shadow:none;border-radius:0}
+  body.fs-on{overflow:hidden}
+
   /* Startsida: blå bakgrund, dolda flikar – bara startsidan visas */
   body.startbg{background:linear-gradient(165deg,#1e3a8a 0%,#2563eb 48%,#0ea5e9 100%);background-attachment:fixed}
   body.startbg header.app{background:rgba(255,255,255,.94);backdrop-filter:saturate(1.2) blur(4px)}
@@ -308,6 +317,12 @@
   <div class="lockcard" id="lockBody"></div>
 </div>
 
+<!-- Helskärm (endast schema: dagar & timmar) -->
+<div id="fsOverlay">
+  <div id="fsBar"></div>
+  <div id="fsBody"></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -319,7 +334,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.6.1";
+const APP_VERSION="2.7.0";
 const APP_BUILD="2026-08-13";
 const MASTER_CODE="333900";
 
@@ -566,6 +581,8 @@ function render(){
   else if(ui.tab==='list')renderList(main);
   else if(ui.tab==='history')renderHistory(main);
   else if(ui.tab==='settings')renderSettings(main);
+  if(fullscreenMode && ui.tab==='schedule')renderFullscreen();
+  else if(fullscreenMode){fullscreenMode=false;document.body.classList.remove('fs-on');const ov=$('#fsOverlay');if(ov)ov.classList.remove('show');}
 }
 let renderMainOnly=render;
 
@@ -635,9 +652,63 @@ function navBar(){
       el('div',{},[el('div',{class:'title'},`Vecka ${wk}`),el('div',{class:'range'},`${longDate(ui.monday)} – ${longDate(sun)} ${parseDate(sun).getFullYear()}`)]),
       el('input',{class:'f',type:'date',value:ui.monday,onchange:e=>{if(e.target.value){ui.monday=mondayOf(e.target.value);saveUI();renderMainOnly();}}}));
   }
-  bar.append(el('div',{class:'grow'}),viewSeg());
+  bar.append(el('div',{class:'grow'}),viewSeg(),
+    el('button',{class:'btn subtle sm',title:'Visa i helskärm (bara dagar & timmar)',style:'margin-left:6px',onclick:enterFullscreen},'⛶ Helskärm'));
   return bar;
 }
+
+/* ---------- Helskärm: endast schemat (dagar & timmar) ---------- */
+let fullscreenMode=false;
+function enterFullscreen(){
+  fullscreenMode=true;document.body.classList.add('fs-on');
+  renderFullscreen();
+  try{const el0=document.getElementById('fsOverlay');if(el0&&el0.requestFullscreen)el0.requestFullscreen().catch(()=>{});}catch(e){}
+}
+function exitFullscreen(){
+  fullscreenMode=false;document.body.classList.remove('fs-on');
+  const ov=$('#fsOverlay');if(ov)ov.classList.remove('show');
+  try{if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(()=>{});}catch(e){}
+  render();
+}
+function fsNav(){
+  const bar=el('div',{style:'display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%'});
+  if(ui.view==='day'){
+    bar.append(
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.selectedDate=addDays(ui.selectedDate,-1);saveUI();renderFullscreen();}},'‹'),
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.selectedDate=todayStr();saveUI();renderFullscreen();}},'Idag'),
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.selectedDate=addDays(ui.selectedDate,1);saveUI();renderFullscreen();}},'›'),
+      el('div',{class:'title',style:'font-weight:700'},`${DAYS[dowIndex(ui.selectedDate)]} ${longDate(ui.selectedDate)}`));
+  }else if(ui.view==='month'){
+    const a=ui.monthAnchor;
+    bar.append(
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.monthAnchor=addMonths(a,-1);saveUI();renderFullscreen();}},'‹'),
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.monthAnchor=firstOfMonth(todayStr());saveUI();renderFullscreen();}},'Idag'),
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.monthAnchor=addMonths(a,1);saveUI();renderFullscreen();}},'›'),
+      el('div',{class:'title',style:'font-weight:700'},`${MONTHS[parseDate(a).getMonth()]} ${parseDate(a).getFullYear()}`));
+  }else{
+    bar.append(
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.monday=addDays(ui.monday,-7);saveUI();renderFullscreen();}},'‹'),
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.monday=mondayOf(todayStr());saveUI();renderFullscreen();}},'Idag'),
+      el('button',{class:'btn subtle sm',onclick:()=>{ui.monday=addDays(ui.monday,7);saveUI();renderFullscreen();}},'›'),
+      el('div',{class:'title',style:'font-weight:700'},`Vecka ${isoWeek(ui.monday)}`));
+  }
+  const seg=el('div',{class:'seg'});
+  [['day','Dag'],['workweek','Arbetsvecka'],['week','Vecka'],['month','Månad']].forEach(([v,lbl])=>{
+    seg.appendChild(el('button',{class:ui.view===v?'active':'',onclick:()=>{ui.view=v;saveUI();renderFullscreen();}},lbl));});
+  bar.append(el('div',{class:'grow'}),seg,el('button',{class:'btn sm',style:'margin-left:6px',onclick:exitFullscreen},'✕ Stäng helskärm'));
+  return bar;
+}
+function renderFullscreen(){
+  const ov=$('#fsOverlay'),bar=$('#fsBar'),body=$('#fsBody');
+  bar.innerHTML='';body.innerHTML='';
+  bar.appendChild(fsNav());
+  if(ui.view==='day')renderDayView(body);
+  else if(ui.view==='month')renderMonthView(body);
+  else renderWeekView(body, ui.view==='workweek'?5:7);
+  ov.classList.add('show');
+  sizeFsScroll();
+}
+function sizeFsScroll(){requestAnimationFrame(()=>{const b=$('#fsBody');if(!b)return;const sc=b.querySelector('.grid-scroll.sched');if(sc)sc.style.maxHeight=Math.max(200,b.clientHeight-6)+'px';});}
 
 /* ============================================================ STARTSIDA (förenklad snabbskapa) ============================================================ */
 function durLabel(min){const h=Math.floor(min/60),m=min%60;return (h?`${h} tim`:'')+(h&&m?' ':'')+(m?`${m} min`:'')||'0 min';}
@@ -708,7 +779,10 @@ function sizeSchedScroll(){
   });
 }
 let _schedResizeBound=false;
-function bindSchedResize(){if(_schedResizeBound)return;_schedResizeBound=true;window.addEventListener('resize',()=>{if(ui.tab==='schedule'&&!ui.viewOnly)sizeSchedScroll();});}
+function bindSchedResize(){if(_schedResizeBound)return;_schedResizeBound=true;
+  window.addEventListener('resize',()=>{if(fullscreenMode)sizeFsScroll();else if(ui.tab==='schedule'&&!ui.viewOnly)sizeSchedScroll();});
+  document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&fullscreenMode)exitFullscreen();});
+}
 
 /* Förenklad, touch-vänlig agendavy (endast visning – för iPhone m.fl.) */
 function agendaDates(){
@@ -1182,7 +1256,7 @@ function deleteSeries(sid){
 
 /* ============================================================ EDITOR ============================================================ */
 let editing=null;
-function quickAdd(date,start,ownerId){if(ui.viewOnly)return;openEditor({date,start,end:start?fromMin(clamp(toMin(start)+45,0,state.settings.dayEnd*60)):'',type:'activity',personId:ownerId||activeOwner()});}
+function quickAdd(date,start,ownerId){if(ui.viewOnly||fullscreenMode)return;openEditor({date,start,end:start?fromMin(clamp(toMin(start)+45,0,state.settings.dayEnd*60)):'',type:'activity',personId:ownerId||activeOwner()});}
 function openEditor(item){
   editing = item && item.id ? item : null;
   const readOnly = ui.viewOnly;
@@ -1729,7 +1803,7 @@ function startCloudOnce(){if(_cloudStarted)return;_cloudStarted=true;cloudInit()
 
 /* ============================================================ BOOT ============================================================ */
 document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>{ui.tab=b.dataset.tab;saveUI();render();}));
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeEditor();closePerson();closeImport();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(document.querySelector('.overlay.show')){closeEditor();closePerson();closeImport();}else if(fullscreenMode){exitFullscreen();}}});
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('mousedown',e=>{if(e.target===o)o.classList.remove('show');}));
 $('#viewOnlyBtn').addEventListener('click',toggleViewOnly);
 bindSchedResize();
