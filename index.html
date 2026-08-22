@@ -334,8 +334,8 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.7.3";
-const APP_BUILD="2026-08-13";
+const APP_VERSION="2.8.0";
+const APP_BUILD="2026-08-22";
 const MASTER_CODE="333900";
 
 /* ---------- helpers ---------- */
@@ -365,6 +365,7 @@ function dowIndex(s){return (parseDate(s).getDay()+6)%7;}
 function toMin(t){if(!t)return null;const[h,m]=t.split(':').map(Number);return h*60+(m||0);}
 function fromMin(m){return `${pad(Math.floor(m/60))}:${pad(m%60)}`;}
 function addMonths(s,n){const d=parseDate(s);const day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);const dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,dim));return dstr(d);}
+function diffDays(a,b){return Math.round((parseDate(b)-parseDate(a))/86400000);}
 function expandRecurrence(start,mode,until){
   if(!mode||mode==='none')return [start];
   const untilStr=until||start;const out=[];
@@ -574,13 +575,17 @@ function passesFilters(i){
 }
 // tillhör posten kategorin pid?
 function itemInvolves(i,pid){return i.personId===pid;}
+// flerdagspost? (egen slutdag efter startdagen)
+function isMultiDay(i){return !!(i&&i.endDate&&i.endDate>i.date);}
+// visas posten på datumet d? (startdagen, eller inom spannet för flerdagsposter)
+function itemOnDate(i,d){return i.date===d || (isMultiDay(i) && d>=i.date && d<=i.endDate);}
 function itemsForDateVisible(date){
   const vis=visiblePersonIds();
-  return state.items.filter(i=>i.date===date && passesFilters(i) &&
+  return state.items.filter(i=>itemOnDate(i,date) && passesFilters(i) &&
     (vis.has(i.personId) || !catById(i.personId)));
 }
 function itemsForPersonDate(date,pid){
-  return state.items.filter(i=>i.date===date && passesFilters(i) && i.personId===pid);
+  return state.items.filter(i=>itemOnDate(i,date) && passesFilters(i) && i.personId===pid);
 }
 
 /* ============================================================ RENDER ============================================================ */
@@ -859,14 +864,22 @@ function eventEl(it,dims,leftPct,widthPct){
     el('div',{class:'em'},`${it.start}${it.end?'–'+it.end:''}${it.location?' · '+it.location:''}`)
   ]);
 }
-function alldayChip(it){return el('div',{class:`chip-ad ${it.type}${it.done?' done':''}`,style:`background:${itemColor(it)}`,title:it.title,onclick:()=>openEditor(it)},
-  (it.shared?'👥 ':'')+it.title);}
+function alldayChip(it,d){
+  let pre='';
+  if(isMultiDay(it)){
+    const first=(d?d:it.date)===it.date, last=(d?d:it.date)===it.endDate;
+    pre = first?'▶ ':(last?'◀ ':'↔ ');   // start / slut / mellandag
+  }
+  const tip=isMultiDay(it)?`${it.title} (${longDate(it.date)} – ${longDate(it.endDate)})`:it.title;
+  return el('div',{class:`chip-ad ${it.type}${it.done?' done':''}`,style:`background:${itemColor(it)}`,title:tip,onclick:()=>openEditor(it)},
+    pre+it.title);
+}
 function dayColumn(dateStr,items,dims,ownerForAdd){
   const {dayStart,dayEnd,HOURPX,hours,gridH}=dims;
   const col=el('div',{class:'daycol',style:`height:${gridH}px`,ondblclick:e=>{const y=e.offsetY;const min=dayStart*60+Math.round((y/HOURPX)*60/15)*15;quickAdd(dateStr,fromMin(clamp(min,dayStart*60,dayEnd*60-15)),ownerForAdd);}});
   for(let h=0;h<=hours;h++)col.appendChild(el('div',{class:'hourline',style:`top:${h*HOURPX}px`}));
   if(dateStr===todayStr()){const now=new Date();const nm=now.getHours()*60+now.getMinutes();if(nm>=dayStart*60&&nm<=dayEnd*60)col.appendChild(el('div',{class:'nowline',style:`top:${(nm-dayStart*60)/60*HOURPX}px`}));}
-  const timed=items.filter(it=>it.start).sort((a,b)=>toMin(a.start)-toMin(b.start));
+  const timed=items.filter(it=>it.start&&!isMultiDay(it)).sort((a,b)=>toMin(a.start)-toMin(b.start));
   layoutOverlaps(timed).forEach(({it,col:c,cols})=>{const w=100/cols;col.appendChild(eventEl(it,dims,c*w,w));});
   return col;
 }
@@ -884,7 +897,7 @@ function renderDayView(main){
   // heldagsrad
   grid.appendChild(el('div',{class:'allday-label'},'Heldag'));
   cols.forEach(p=>{const cell=el('div',{class:'allday-cell'});
-    itemsForPersonDate(date,p.id).filter(it=>!it.start).sort(sortItems).forEach(it=>cell.appendChild(alldayChip(it)));
+    itemsForPersonDate(date,p.id).filter(it=>!it.start||isMultiDay(it)).sort(sortItems).forEach(it=>cell.appendChild(alldayChip(it,date)));
     cell.appendChild(el('div',{style:'flex:1;min-height:6px',onclick:()=>quickAdd(date,null,p.id)}));grid.appendChild(cell);});
   // tidkolumn
   const timecol=el('div',{class:'timecol',style:`height:${dims.gridH}px`});
@@ -905,7 +918,7 @@ function renderWeekView(main,nDays){
       el('div',{class:'dn'},DAYS_SHORT[i]),el('div',{class:'dd'},longDate(d))]));}
   grid.appendChild(el('div',{class:'allday-label'},'Heldag'));
   dates.forEach(d=>{const cell=el('div',{class:'allday-cell'});
-    itemsForDateVisible(d).filter(it=>!it.start).sort(sortItems).forEach(it=>cell.appendChild(alldayChip(it)));
+    itemsForDateVisible(d).filter(it=>!it.start||isMultiDay(it)).sort(sortItems).forEach(it=>cell.appendChild(alldayChip(it,d)));
     cell.appendChild(el('div',{style:'flex:1;min-height:6px',onclick:()=>quickAdd(d,null,activeOwner())}));grid.appendChild(cell);});
   const timecol=el('div',{class:'timecol',style:`height:${dims.gridH}px`});
   for(let h=dims.dayStart;h<=dims.dayEnd;h++)timecol.appendChild(el('div',{class:'timelabel',style:`top:${(h-dims.dayStart)*dims.HOURPX}px`},`${pad(h)}:00`));
@@ -1050,7 +1063,7 @@ function renderList(main){
       else{const cb=el('input',{type:'checkbox',class:'rowchk'});cb.dataset.id=i.id;cb.checked=listSelected.has(i.id);
         cb.onchange=()=>{if(cb.checked)listSelected.add(i.id);else listSelected.delete(i.id);refreshSel();};chkCell=td(cb);}
       tr.append(chkCell,
-        td(i.start?`${i.start}${i.end?'–'+i.end:''}`:'heldag'),
+        td(isMultiDay(i)?`${longDate(i.date)} – ${longDate(i.endDate)}`:(i.start?`${i.start}${i.end?'–'+i.end:''}`:'heldag')),
         td(el('span',{class:'tag '+(i.done?'done':i.type)},i.done?'klar':(i.type==='task'?'uppgift':'aktivitet'))),
         td(el('div',{},[el('strong',{},(i.seriesId?'🔁 ':'')+i.title),i.description?el('div',{class:'muted',style:'font-size:12px'},i.description):null])),
         td(personBadge(i.personId)),td(i.location||'—'),
@@ -1228,7 +1241,8 @@ function createItems(data,mode,until){
   const isSeries = mode && mode!=='none' && dates.length>1;
   const sid = isSeries ? ('s'+uid()) : null;
   const meta = isSeries ? {seriesId:sid,recurMode:mode,seriesStart:data.date,seriesUntil:until||dates[dates.length-1]} : {};
-  dates.forEach(dt=>{const it=Object.assign({id:uid(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),source:data.source||'manual'},data,meta,{date:dt,pendingSync:true});state.items.push(it);created.push(it);});
+  const span=(data.endDate&&data.endDate>data.date)?diffDays(data.date,data.endDate):0;
+  dates.forEach(dt=>{const it=Object.assign({id:uid(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),source:data.source||'manual'},data,meta,{date:dt,endDate:span>0?addDays(dt,span):'',pendingSync:true});state.items.push(it);created.push(it);});
   if(created.length===1)logHistory('create',created[0]);
   else logHistory('create',null,`${data.title}: ${created.length} tillfällen (${recurLabel(mode)})`,created.map(i=>i.id));
   save();return created;
@@ -1293,8 +1307,12 @@ function openEditor(item){
     field('title','Titel *','text',i.title||'',{placeholder:'t.ex. Träningspass'}),
     labelWrap('Beskrivning',el('textarea',{id:'f_description',placeholder:'Detaljer, länkar, anteckningar…'},i.description||'')));
   const r1=el('div',{class:'row2'});
-  r1.append(field('date','Datum','date',i.date||ui.selectedDate),field('location','Plats','text',i.location||'',{placeholder:'t.ex. Gymmet'}));
+  r1.append(field('date','Startdag','date',i.date||ui.selectedDate),field('enddate','Slutdag (valfritt)','date',i.endDate||''));
   b.appendChild(r1);
+  b.appendChild(el('div',{class:'hint'},'Ange en slutdag för att sträcka aktiviteten över flera dagar. Lämna tomt för en endagsaktivitet.'));
+  const rLoc=el('div',{class:'row2'});
+  rLoc.append(field('location','Plats','text',i.location||'',{placeholder:'t.ex. Gymmet'}),el('div'));
+  b.appendChild(rLoc);
   const r2=el('div',{class:'row3'});
   r2.append(field('start','Start','time',i.start||''),field('end','Slut','time',i.end||''),labelWrap('Kategori',personSelect(i.personId||activeOwner())));
   b.appendChild(r2);
@@ -1341,12 +1359,17 @@ function saveFromEditor(){
   const data={type:b.dataset.type||'activity',title,description:$('#f_description').value.trim(),
     date:$('#f_date').value||ui.selectedDate,start:$('#f_start').value||'',end:$('#f_end').value||'',
     location:$('#f_location').value.trim(),personId:ownerId,done:$('#f_done').checked};
+  const ed=$('#f_enddate')?$('#f_enddate').value:'';
+  data.endDate=(ed&&ed>data.date)?ed:'';
   if(data.start&&data.end&&toMin(data.end)<=toMin(data.start))data.end=fromMin(toMin(data.start)+45);
   if(editing){
     if(editing.seriesId && b.dataset.scope==='all'){
       // Hela serien: applicera gemensamma fält (ej datum) på alla tillfällen
       const shared={type:data.type,title:data.title,description:data.description,start:data.start,end:data.end,location:data.location,personId:data.personId,done:data.done};
       updateSeriesFields(editing.seriesId,shared);
+      // slutdag/span per tillfälle (samma antal dagar för alla i serien)
+      const span=data.endDate?diffDays(data.date,data.endDate):0;
+      seriesItems(editing.seriesId).forEach(it=>{if(it.seriesEx)return;it.endDate=span>0?addDays(it.date,span):'';});
       // ev. nytt slutdatum
       const meta=seriesMeta(editing.seriesId);
       const newUntil=$('#f_series_until')?$('#f_series_until').value:null;
