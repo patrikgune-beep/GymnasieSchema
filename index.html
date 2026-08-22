@@ -334,7 +334,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.8.0";
+const APP_VERSION="2.8.1";
 const APP_BUILD="2026-08-22";
 const MASTER_CODE="333900";
 
@@ -726,9 +726,34 @@ function renderFullscreen(){
   else if(ui.view==='month')renderMonthView(body);
   else renderWeekView(body, ui.view==='workweek'?5:7);
   ov.classList.add('show');
+  attachFsSwipe(body);
   sizeFsScroll();
 }
 function sizeFsScroll(){requestAnimationFrame(()=>{const b=$('#fsBody');if(!b)return;const sc=b.querySelector('.grid-scroll.sched');if(sc)sc.style.maxHeight=Math.max(200,b.clientHeight-6)+'px';});}
+// Bläddra fram/tillbaka i aktuell vy (dir: +1 nästa, -1 föregående)
+function fsStep(dir){
+  if(ui.view==='day')ui.selectedDate=addDays(ui.selectedDate,dir);
+  else if(ui.view==='month')ui.monthAnchor=addMonths(ui.monthAnchor,dir);
+  else ui.monday=addDays(ui.monday,7*dir);
+  saveUI();renderFullscreen();
+}
+// Swipe/drag vänster = nästa period, höger = föregående. Ignorera vertikal scroll.
+function attachFsSwipe(body){
+  if(body.dataset.swipe)return;body.dataset.swipe='1';
+  let x0=0,y0=0,t0=0,tracking=false;
+  const THRESH=55; // px horisontellt som krävs
+  const start=(x,y)=>{x0=x;y0=y;t0=Date.now();tracking=true;};
+  const end=(x,y)=>{
+    if(!tracking)return;tracking=false;
+    const dx=x-x0,dy=y-y0,dt=Date.now()-t0;
+    if(dt<800 && Math.abs(dx)>THRESH && Math.abs(dx)>Math.abs(dy)*1.4){fsStep(dx<0?1:-1);}
+  };
+  body.addEventListener('touchstart',e=>{if(e.touches.length===1)start(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+  body.addEventListener('touchend',e=>{const t=e.changedTouches&&e.changedTouches[0];if(t)end(t.clientX,t.clientY);},{passive:true});
+  // Musdrag (desktop)
+  body.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button===0)start(e.clientX,e.clientY);});
+  body.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')end(e.clientX,e.clientY);});
+}
 
 /* ============================================================ STARTSIDA (förenklad snabbskapa) ============================================================ */
 function durLabel(min){const h=Math.floor(min/60),m=min%60;return (h?`${h} tim`:'')+(h&&m?' ':'')+(m?`${m} min`:'')||'0 min';}
@@ -1305,17 +1330,16 @@ function openEditor(item){
 
   b.append(labelWrap('Typ',seg),
     field('title','Titel *','text',i.title||'',{placeholder:'t.ex. Träningspass'}),
+    field('location','Plats','text',i.location||'',{placeholder:'t.ex. Gymmet'}),
     labelWrap('Beskrivning',el('textarea',{id:'f_description',placeholder:'Detaljer, länkar, anteckningar…'},i.description||'')));
   const r1=el('div',{class:'row2'});
-  r1.append(field('date','Startdag','date',i.date||ui.selectedDate),field('enddate','Slutdag (valfritt)','date',i.endDate||''));
+  r1.append(field('date','Startdag','date',i.date||ui.selectedDate),field('start','Starttid','time',i.start||''));
   b.appendChild(r1);
-  b.appendChild(el('div',{class:'hint'},'Ange en slutdag för att sträcka aktiviteten över flera dagar. Lämna tomt för en endagsaktivitet.'));
-  const rLoc=el('div',{class:'row2'});
-  rLoc.append(field('location','Plats','text',i.location||'',{placeholder:'t.ex. Gymmet'}),el('div'));
-  b.appendChild(rLoc);
-  const r2=el('div',{class:'row3'});
-  r2.append(field('start','Start','time',i.start||''),field('end','Slut','time',i.end||''),labelWrap('Kategori',personSelect(i.personId||activeOwner())));
+  const r2=el('div',{class:'row2'});
+  r2.append(field('enddate','Slutdag (valfritt)','date',i.endDate||''),field('end','Sluttid','time',i.end||''));
   b.appendChild(r2);
+  b.appendChild(el('div',{class:'hint'},'Ange en slutdag för att sträcka aktiviteten över flera dagar. Lämna tomt för en endagsaktivitet.'));
+  b.appendChild(labelWrap('Kategori',personSelect(i.personId||activeOwner())));
 
   // klar
   const doneWrap=el('label',{class:'hstep',style:'cursor:pointer'});
