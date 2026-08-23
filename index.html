@@ -334,7 +334,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.8.2";
+const APP_VERSION="2.8.3";
 const APP_BUILD="2026-08-22";
 const MASTER_CODE="333900";
 
@@ -777,7 +777,9 @@ function renderStart(main){
 
   // Kategori som drop-down
   const catSel=el('select',{class:'f',style:'width:100%;font-size:16px;padding:13px'});
-  const selCat0=(ui.startCat&&catById(ui.startCat))?ui.startCat:activeOwner();
+  // Förvald kategori på Startsidan: Övrigt (om den finns), annars första kategorin.
+  const ovrigt=state.persons.find(p=>(p.name||'').toLowerCase()==='övrigt');
+  const selCat0=(ui.startCat&&catById(ui.startCat))?ui.startCat:(ovrigt?ovrigt.id:activeOwner());
   state.persons.forEach(p=>{const o=el('option',{value:p.id},(p.icon?p.icon+' ':'')+p.name);if(p.id===selCat0)o.selected=true;catSel.appendChild(o);});
   catSel.onchange=()=>{ui.startCat=catSel.value;saveUI();};
   card.append(labelWrap('Kategori',catSel));
