@@ -334,7 +334,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.8.3";
+const APP_VERSION="2.8.4";
 const APP_BUILD="2026-08-22";
 const MASTER_CODE="333900";
 
@@ -614,7 +614,11 @@ function toggleViewOnly(){ui.viewOnly=!ui.viewOnly;saveUI();updateViewOnlyBtn();
 function controlsBar(){
   const wrap=el('div',{class:'toolbar'});
   const search=el('div',{class:'search'},[el('span',{html:'🔍'}),
-    el('input',{type:'text',placeholder:'Sök titel, kategori, plats…',value:ui.search,oninput:e=>{ui.search=e.target.value;saveUI();renderMainOnly();}})]);
+    el('input',{id:'searchInput',type:'text',placeholder:'Sök titel, kategori, plats…',value:ui.search,oninput:e=>{
+      const pos=e.target.selectionStart;ui.search=e.target.value;saveUI();renderMainOnly();
+      // Rendern bygger om verktygsfältet, så fokus och markörläge måste återställas.
+      const ni=$('#searchInput');if(ni){ni.focus();try{ni.setSelectionRange(pos,pos);}catch(_){}}
+    }})]);
   const ft=el('select',{class:'f',onchange:e=>{ui.filterType=e.target.value;saveUI();renderMainOnly();}},[
     el('option',{value:'all'},'Alla typer'),el('option',{value:'activity'},'Aktiviteter'),el('option',{value:'task'},'Uppgifter')]);ft.value=ui.filterType;
   const man=el('label',{class:'chk'});const mc=el('input',{type:'checkbox'});mc.checked=ui.filterManual;
