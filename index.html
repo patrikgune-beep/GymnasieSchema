@@ -334,7 +334,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.8.7";
+const APP_VERSION="2.8.8";
 const APP_BUILD="2026-08-22";
 const MASTER_CODE="333900";
 
@@ -488,6 +488,26 @@ function isSeedEmpty(){
 }
 function normalizePersons(){
   (state.persons||[]).forEach(p=>{if(!('icon'in p))p.icon='';if(!('visible'in p))p.visible=true;});
+  // Kategoriordning: säkerställ att varje kategori har ett numeriskt "order" och
+  // sortera efter det. Saknas order (äldre data) bevaras nuvarande visningsordning.
+  const arr=state.persons||[];
+  let maxO=-Infinity;arr.forEach(p=>{if(typeof p.order==='number'&&isFinite(p.order))maxO=Math.max(maxO,p.order);});
+  if(maxO===-Infinity)maxO=-1;
+  arr.forEach(p=>{if(typeof p.order!=='number'||!isFinite(p.order)){maxO+=1;p.order=maxO;}});
+  arr.sort((a,b)=>a.order-b.order);
+}
+// Flytta en kategori upp/ner i ordningen. Slår igenom överallt (state.persons
+// itereras i denna ordning) och synkas till molnet (updatedAt bumpas så att
+// omordningen vinner vid union-merge).
+function moveCategory(id,dir){
+  normalizePersons();
+  const arr=state.persons;const i=arr.findIndex(p=>p.id===id);if(i<0)return;
+  const j=i+dir;if(j<0||j>=arr.length)return;
+  const a=arr[i],b=arr[j];const ao=a.order,bo=b.order;
+  a.order=bo;b.order=ao;
+  const now=new Date().toISOString();a.updatedAt=now;b.updatedAt=now;
+  arr.sort((x,y)=>x.order-y.order);
+  save();renderMainOnly();
 }
 function normalizeItems(){
   (state.items||[]).forEach(i=>{if(i.shared)i.shared=false;});
@@ -1260,11 +1280,14 @@ function renderSettings(main){
 function renderCategoriesCard(){
   const c=el('div',{class:'card full'});
   c.append(el('h3',{},'Kategorier'),
-    el('p',{class:'muted',style:'margin-top:0'},'Kategorier används för att gruppera och färglägga aktiviteter (t.ex. Transport, Läxor, Jobba, Träna). Lägg till fler, byt namn, ändra färg och ikon, eller dölj en kategori. Dolda kategorier visas inte i schemat men behåller sina poster.'));
-  state.persons.forEach(p=>c.append(el('div',{class:'hstep'},[
+    el('p',{class:'muted',style:'margin-top:0'},'Kategorier används för att gruppera och färglägga aktiviteter (t.ex. Transport, Läxor, Jobba, Träna). Ändra ordningen med pilarna – den slår igenom överallt (Startsidan, Schema, Redigera aktivitet). Lägg till fler, byt namn, ändra färg och ikon, eller dölj en kategori. Dolda kategorier visas inte i schemat men behåller sina poster.'));
+  const total=state.persons.length;
+  state.persons.forEach((p,idx)=>c.append(el('div',{class:'hstep'},[
     el('span',{class:'ava',style:`width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:${p.color}`},p.icon||initial(p.name)),
     el('span',{style:p.visible?'':'opacity:.5;text-decoration:line-through'},p.name),el('span',{style:'flex:1'}),
     el('span',{class:'muted',style:'font-size:12px'},p.visible?'synlig':'dold'),
+    el('button',{class:'icon-btn',title:'Flytta upp',disabled:idx===0,style:idx===0?'opacity:.3':'',onclick:()=>moveCategory(p.id,-1)},'▲'),
+    el('button',{class:'icon-btn',title:'Flytta ner',disabled:idx===total-1,style:idx===total-1?'opacity:.3':'',onclick:()=>moveCategory(p.id,1)},'▼'),
     el('button',{class:'icon-btn',title:p.visible?'Dölj':'Visa',onclick:()=>{p.visible=!p.visible;save();renderMainOnly();}},p.visible?'👁':'🚫'),
     el('button',{class:'icon-btn',title:'Redigera',onclick:()=>openPerson(p)},'✎')])));
   c.append(el('button',{class:'btn subtle sm',style:'margin-top:10px',onclick:()=>openPerson(null)},'＋ Lägg till kategori'));
@@ -1499,8 +1522,9 @@ function closePerson(){$('#personOverlay').classList.remove('show');editingPerso
 function savePerson(){
   const name=$('#pname').value.trim();if(!name){toast('Namn krävs');return;}
   const b=$('#personBody');const color=b.dataset.color;const icon=(b.dataset.icon||'').trim();const visible=$('#pvis').checked;
-  if(editingPerson){editingPerson.name=name;editingPerson.color=color;editingPerson.icon=icon;editingPerson.visible=visible;}
-  else{state.persons.push({id:uid(),name,color,icon,visible});}
+  const now=new Date().toISOString();
+  if(editingPerson){editingPerson.name=name;editingPerson.color=color;editingPerson.icon=icon;editingPerson.visible=visible;editingPerson.updatedAt=now;}
+  else{const maxO=(state.persons||[]).reduce((m,p)=>Math.max(m,(typeof p.order==='number'?p.order:-1)),-1);state.persons.push({id:uid(),name,color,icon,visible,order:maxO+1,updatedAt:now});}
   save();closePerson();applyTheme();render();
 }
 function deletePerson(){
