@@ -334,7 +334,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.8.4";
+const APP_VERSION="2.8.5";
 const APP_BUILD="2026-08-22";
 const MASTER_CODE="333900";
 
@@ -515,11 +515,14 @@ function load(){
 
 /* ---------- history + batches ---------- */
 // itemIds (valfritt): vilka poster raden avser, så att man kan radera dem från Ändringsloggen.
-function logHistory(action,item,details,itemIds){
+function logHistory(action,item,details,itemIds,key){
   const entry={id:uid(),ts:new Date().toISOString(),action,itemId:item?item.id:null,
     itemTitle:item?item.title:(details||''),by:'',details:details||''};
   if(Array.isArray(itemIds)&&itemIds.length)entry.itemIds=itemIds.slice();
   else if(item&&item.id)entry.itemIds=[item.id];
+  // key: ersättningsnyckel (t.ex. 'feed:<subId>') så bara SENASTE uppdateringen
+  // av en prenumeration finns kvar i loggen istället för en rad per synk.
+  if(key){entry.key=key;state.history=state.history.filter(h=>h.key!==key);}
   state.history.unshift(entry);
   if(state.history.length>3000)state.history.length=3000;
 }
@@ -800,7 +803,7 @@ function renderStart(main){
     titleI.value='';toast('✓ Skapad: '+title+' · '+longDate(date)+(start?' '+start:''));
   }},'＋ Skapa aktivitet');
   const goBtn=el('button',{class:'btn ghost',style:'flex:1 1 190px;justify-content:center;font-size:17px;padding:15px',onclick:()=>{
-    if(dateI.value){ui.selectedDate=dateI.value;ui.monday=mondayOf(dateI.value);}ui.tab='schedule';ui.view='workweek';saveUI();render();enterFullscreen();
+    if(dateI.value){ui.selectedDate=dateI.value;ui.monday=mondayOf(dateI.value);}ui.tab='schedule';ui.view='workweek';saveUI();render();enterFullscreen();autoSyncSubscriptions();
   }},'⛶ Schema');
   btns.append(createBtn,goBtn);
   card.append(btns);
@@ -1557,11 +1560,27 @@ async function refreshSubscription(sub,opts={}){
     dedupeFeedItems();
     const b=state.batches.find(x=>x.id===batchId);if(b)b.count=n;
     sub.lastSync=Date.now();sub.lastCount=n;sub.syncing=false;
-    logHistory('import',null,`Prenumeration ”${sub.name}”: ${n} poster uppdaterade`,newIds);
+    logHistory('import',null,`Prenumeration ”${sub.name}”: ${n} poster uppdaterade`,newIds,'feed:'+sub.id);
     save();if(!opts.silent){render();toast(`Prenumeration uppdaterad: ${n} poster`);}return n;
   }catch(err){sub.lastError=err.message||String(err);sub.syncing=false;save();if(!opts.silent){renderMainOnly();toast('Kunde inte uppdatera: '+sub.lastError);}return -1;}
 }
 async function refreshAllSubscriptions(silent){for(const sub of (state.subscriptions||[])){if(sub.active!==false)await refreshSubscription(sub,{silent});}}
+// Tyst autosynk av alla prenumerationer (t.ex. vid Schema/Startsidan). Hoppar
+// över om inga prenumerationer finns, ett fönster är öppet, eller om senaste
+// autosynk var nyligen (undviker onödigt täta nätverksanrop).
+let _lastAutoSync=0,_autoSyncing=false;
+function autoSyncSubscriptions(){
+  const subs=(state.subscriptions||[]).filter(s=>s&&s.active!==false);
+  if(!subs.length||_autoSyncing)return;
+  if(document.querySelector('.overlay.show'))return;
+  const now=Date.now();if(now-_lastAutoSync<15000)return;
+  _lastAutoSync=now;_autoSyncing=true;
+  refreshAllSubscriptions(true).then(()=>{_autoSyncing=false;
+    if(document.querySelector('.overlay.show'))return;
+    if(fullscreenMode&&ui.tab==='schedule')renderFullscreen();
+    else if(ui.tab==='schedule'||ui.tab==='start'||ui.tab==='list')render();
+  }).catch(()=>{_autoSyncing=false;});
+}
 function saveSubscription(data){if(data.id){const s=state.subscriptions.find(x=>x.id===data.id);if(s)Object.assign(s,data);}else{state.subscriptions.push(Object.assign({active:true,lastSync:0,lastError:''},data,{id:'sub'+uid()}));}save();}
 function deleteSubscription(subId,alsoItems){
   const sub=state.subscriptions.find(s=>s.id===subId);
@@ -1881,10 +1900,10 @@ function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show'
 
 /* ---------- ingen inloggning längre (borttagen) ---------- */
 function refreshLockIfOpen(){}
-function startCloudOnce(){if(_cloudStarted)return;_cloudStarted=true;cloudInit();if(state.subscriptions&&state.subscriptions.length)setTimeout(()=>refreshAllSubscriptions(true).then(()=>{if(ui.tab==='schedule'||ui.tab==='list')render();}),1500);startFeedAutoRefresh();}
+function startCloudOnce(){if(_cloudStarted)return;_cloudStarted=true;cloudInit();if(state.subscriptions&&state.subscriptions.length)setTimeout(()=>{_lastAutoSync=Date.now();refreshAllSubscriptions(true).then(()=>{if(ui.tab==='schedule'||ui.tab==='list'||ui.tab==='start')render();});},1500);startFeedAutoRefresh();}
 
 /* ============================================================ BOOT ============================================================ */
-document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>{ui.tab=b.dataset.tab;if(ui.tab==='schedule')ui.view='workweek';saveUI();render();}));
+document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>{ui.tab=b.dataset.tab;if(ui.tab==='schedule')ui.view='workweek';saveUI();render();if(ui.tab==='schedule'||ui.tab==='start')autoSyncSubscriptions();}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(document.querySelector('.overlay.show')){closeEditor();closePerson();closeImport();}else if(fullscreenMode){exitFullscreen();}}});
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('mousedown',e=>{if(e.target===o)o.classList.remove('show');}));
 $('#viewOnlyBtn').addEventListener('click',toggleViewOnly);
