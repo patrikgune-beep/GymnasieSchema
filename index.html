@@ -334,7 +334,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.8.5";
+const APP_VERSION="2.8.6";
 const APP_BUILD="2026-08-22";
 const MASTER_CODE="333900";
 
@@ -458,6 +458,29 @@ function seed(){
   // molnet, annars skulle en rensad enhet skriva över molndatan med tomt schema.
   saveLocal();
 }
+// Engångsmigrering: äldre installationer (före kategori-pivoten) har kvar
+// gamla personbaserade kategorier (t.ex. "Patrik", "Katarina"). Ersätt dem med
+// de nya standardkategorierna. Poster/prenumerationer flyttas till "Övrigt" och
+// de gamla kategorierna tombstone-markeras så de inte återkommer via molnsynk.
+function migrateLegacyCategories(){
+  if(state.settings&&state.settings.catMigrated)return false;
+  const persons=state.persons||[];
+  // "Övrigt" räknas INTE som ny kategori – den auto-läggs även på gamla installationer.
+  // Signalen för en riktig kategori-installation är någon av kärn-kategorierna.
+  const coreNames=DEFAULT_CATEGORIES.map(c=>c[0].trim().toLowerCase()).filter(n=>n!=='övrigt');
+  const hasNew=persons.some(p=>coreNames.includes((p.name||'').trim().toLowerCase()));
+  if(!persons.length||hasNew){if(state.settings)state.settings.catMigrated=true;return false;}
+  const oldIds=persons.map(p=>p.id);
+  const newPersons=DEFAULT_CATEGORIES.map(([name,color,icon])=>({id:uid(),name,color,icon,visible:true}));
+  const ovr=newPersons.find(p=>(p.name||'').toLowerCase()==='övrigt')||newPersons[newPersons.length-1];
+  (state.items||[]).forEach(i=>{if(oldIds.includes(i.personId))i.personId=ovr.id;});
+  (state.subscriptions||[]).forEach(s=>{if(oldIds.includes(s.personId))s.personId=ovr.id;});
+  if(!Array.isArray(state.deletedCats))state.deletedCats=[];
+  oldIds.forEach(id=>{if(id&&!state.deletedCats.includes(id))state.deletedCats.push(id);});
+  state.persons=newPersons;
+  if(state.settings){state.settings.catMigrated=true;state.settings.ovrigtSeeded=true;}
+  return true;
+}
 // tomt/orört starttillstånd? (används för att aldrig skriva över riktig molndata)
 function isSeedEmpty(){
   return (!state.items||!state.items.length) && (!state.subscriptions||!state.subscriptions.length)
@@ -499,6 +522,9 @@ function load(){
   if(!Array.isArray(state.items))state.items=[];
   if(!state.persons||!state.persons.length)seed();
   normalizePersons();normalizeItems();normalizeSubscriptions();dedupeFeedItems();
+  // Ersätt ev. gamla personbaserade kategorier med de nya standardkategorierna
+  // FÖRE Övrigt-seedningen (så en migrering ger alla fem standardkategorier).
+  let _migrated=migrateLegacyCategories();
   // engångs: se till att kategorin "Övrigt" finns (även för äldre installationer).
   // Namnvakt hindrar dubbletter; flaggan hindrar att den återkommer om den raderats.
   if(!state.settings.ovrigtSeeded){
@@ -506,6 +532,7 @@ function load(){
       state.persons.push({id:uid(),name:'Övrigt',color:'#64748b',icon:'📌',visible:true});
     state.settings.ovrigtSeeded=true;
   }
+  if(_migrated)state.updatedAt=Date.now(); // lokal blir auktoritativ + synkas upp
   saveLocal();   // persistera normalisering (dedup, Övrigt, id-backfill) utan att bumpa updatedAt
   try{const u=JSON.parse(localStorage.getItem(LS_UI)||'null');if(u)Object.assign(ui,u);}catch(e){}
   // startsida vid varje öppning + landa på dagens vecka/dag
@@ -1823,6 +1850,8 @@ function applyCloud(data){
   state.deletedItems=[...itemTombs].slice(-8000);
 
   state.updatedAt=data.updatedAt||Date.now();
+  // Molnet kan innehålla gamla personbaserade kategorier – migrera även efter synk.
+  if(migrateLegacyCategories())state.updatedAt=Date.now();
   normalizePersons();normalizeItems();normalizeSubscriptions();dedupeFeedItems();
   if(session.userId&&!state.persons.find(p=>p.id===session.userId)){session.userId=null;session.master=false;}
   saveLocal();refreshLockIfOpen();
