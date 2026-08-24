@@ -334,7 +334,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.8.9";
+const APP_VERSION="2.9.0";
 const APP_BUILD="2026-08-22";
 const MASTER_CODE="333900";
 
@@ -390,7 +390,7 @@ function defaultSettings(){return {dayStart:8,dayEnd:17,feedProxy:'',
   brand:{logo:'GS',logoImg:'',bg:'#eef2f6',heading:'#1c2733',accent:'#2563eb'}, sharedColor:'#7c3aed'};}
 let state = {
   persons:[], items:[], history:[], batches:[], subscriptions:[],
-  deletedSubs:[], deletedItems:[], deletedCats:[],
+  deletedSubs:[], deletedItems:[], deletedCats:[], subDeletedAt:{},
   settings: defaultSettings(), updatedAt:0
 };
 // enhetslokal UI (synkas ej)
@@ -411,7 +411,14 @@ function personIcon(id){const p=catById(id);return p?(p.icon||initial(p.name)):'
 function itemColor(it){return personColor(it.personId);}
 // stabil identitet för en prenumeration (URL är den naturliga nyckeln; id som reserv)
 function subKey(s){return s?(s.url?('u:'+s.url):(s.id?('i:'+s.id):null)):null;}
-function normalizeSubscriptions(){(state.subscriptions||[]).forEach(s=>{if(s&&!s.id)s.id='sub'+uid();});}
+function normalizeSubscriptions(){(state.subscriptions||[]).forEach(s=>{if(s&&!s.id)s.id='sub'+uid();if(s&&typeof s.addedAt!=='number')s.addedAt=0;});}
+// Slå ihop en tidsstämpelkarta för raderade prenumerationer (nyaste vinner) och
+// veckla in gammal deletedSubs (sträng-array utan tid) som svagaste (ts=0).
+function foldSubDeletedAt(target,src,legacyArr){
+  if(src&&typeof src==='object'){for(const k in src){const v=+src[k]||0;if(v>(target[k]||0))target[k]=v;}}
+  (Array.isArray(legacyArr)?legacyArr:[]).forEach(k=>{if(!(k in target))target[k]=0;});
+  return target;
+}
 
 /* ---------- inga behörigheter längre (ingen inloggning) ---------- */
 function canEdit(){return true;}
@@ -440,7 +447,7 @@ function applyTheme(){
 function saveLocal(){
   try{localStorage.setItem(LS_KEY,JSON.stringify({
     persons:state.persons,items:state.items,history:state.history,batches:state.batches,
-    subscriptions:state.subscriptions,deletedSubs:state.deletedSubs,deletedItems:state.deletedItems,deletedCats:state.deletedCats,
+    subscriptions:state.subscriptions,deletedSubs:state.deletedSubs,deletedItems:state.deletedItems,deletedCats:state.deletedCats,subDeletedAt:state.subDeletedAt,
     settings:state.settings,updatedAt:state.updatedAt
   }));}catch(e){console.warn('save fail',e);}
 }
@@ -538,6 +545,9 @@ function load(){
   if(!Array.isArray(state.deletedSubs))state.deletedSubs=[];
   if(!Array.isArray(state.deletedItems))state.deletedItems=[];
   if(!Array.isArray(state.deletedCats))state.deletedCats=[];
+  if(!state.subDeletedAt||typeof state.subDeletedAt!=='object')state.subDeletedAt={};
+  // veckla in ev. gammal deletedSubs som svagaste tidsstämplar
+  foldSubDeletedAt(state.subDeletedAt,state.subDeletedAt,state.deletedSubs);
   if(!Array.isArray(state.history))state.history=[];
   if(!Array.isArray(state.items))state.items=[];
   if(!state.persons||!state.persons.length)seed();
@@ -1207,7 +1217,8 @@ function resetAll(){
   // tombstona allt så molnet inte återställer det vid nästa synk
   tombstoneItems(state.items.map(i=>i.id));
   tombstoneCats(state.persons.map(p=>p.id));
-  (state.subscriptions||[]).forEach(s=>{const k=subKey(s);if(k&&!state.deletedSubs.includes(k))state.deletedSubs.push(k);});
+  if(!state.subDeletedAt||typeof state.subDeletedAt!=='object')state.subDeletedAt={};
+  {const now=Date.now();(state.subscriptions||[]).forEach(s=>{const k=subKey(s);if(k){state.subDeletedAt[k]=now;if(!state.deletedSubs.includes(k))state.deletedSubs.push(k);}});}
   state.items=[];state.history=[];state.batches=[];state.subscriptions=[];
   seed();logHistory('delete',null,'Allt raderat – nytt schema');save();
   toast('Allt raderat – nytt schema skapat');render();
@@ -1660,18 +1671,23 @@ function autoSyncSubscriptions(){
 const _revivedSubKeys=new Set();
 function saveSubscription(data){
   const s0=data.id?state.subscriptions.find(x=>x.id===data.id):null;
-  if(s0){Object.assign(s0,data);}
-  else{state.subscriptions.push(Object.assign({active:true,lastSync:0,lastError:''},data,{id:'sub'+uid()}));}
-  // (Åter)läggning: häv ev. tombstone för denna URL så den inte tas bort av synken.
+  const now=Date.now();
+  if(s0){Object.assign(s0,data);s0.addedAt=now;}
+  else{state.subscriptions.push(Object.assign({active:true,lastSync:0,lastError:''},data,{id:'sub'+uid(),addedAt:now}));}
+  // (Åter)läggning "vinner" över en tidigare radering: addedAt=nu är nyare än ev.
+  // raderingstidsstämpel, och vi rensar den gamla tombstonen (lokalt + karta).
   const sub=s0||state.subscriptions[state.subscriptions.length-1];
   const k=subKey(sub);
-  if(k){_revivedSubKeys.add(k);if(Array.isArray(state.deletedSubs))state.deletedSubs=state.deletedSubs.filter(x=>x!==k);}
+  if(k){_revivedSubKeys.add(k);
+    if(state.subDeletedAt&&(k in state.subDeletedAt))delete state.subDeletedAt[k];
+    if(Array.isArray(state.deletedSubs))state.deletedSubs=state.deletedSubs.filter(x=>x!==k);}
   save();
 }
 function deleteSubscription(subId,alsoItems){
   const sub=state.subscriptions.find(s=>s.id===subId);
   if(!Array.isArray(state.deletedSubs))state.deletedSubs=[];
-  if(sub){const k=subKey(sub);if(k){_revivedSubKeys.delete(k);if(!state.deletedSubs.includes(k))state.deletedSubs.push(k);}}   // tombstone (URL) – synkas, hindrar återuppståndelse
+  if(!state.subDeletedAt||typeof state.subDeletedAt!=='object')state.subDeletedAt={};
+  if(sub){const k=subKey(sub);if(k){_revivedSubKeys.delete(k);state.subDeletedAt[k]=Date.now();if(!state.deletedSubs.includes(k))state.deletedSubs.push(k);}}   // tombstone (URL, med tid) – synkas, hindrar återuppståndelse
   const url=sub?normFeedUrl(sub.url):null;
   state.subscriptions=state.subscriptions.filter(s=>s.id!==subId);
   // Att ta bort prenumerationen är enda sättet att ta bort prenumererat data:
@@ -1848,7 +1864,7 @@ let _pushTimer=null,_pollStarted=false,_cloudStarted=false;
 function supaRestUrl(){return SUPA_URL.replace(/\/+$/,'')+'/rest/v1';}
 function cloudEnabled(){return /^https?:\/\//.test(SUPA_URL)&&SUPA_KEY.length>20;}
 function cloudHeaders(extra){return Object.assign({apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY,'Content-Type':'application/json'},extra||{});}
-function cloudData(){return {persons:state.persons,items:state.items.map(i=>{const j=Object.assign({},i);delete j.pendingSync;return j;}),history:state.history,batches:state.batches,subscriptions:state.subscriptions,deletedSubs:state.deletedSubs,deletedItems:state.deletedItems,deletedCats:state.deletedCats,settings:state.settings,updatedAt:state.updatedAt,app:'gymnasieschema',v:2};}
+function cloudData(){return {persons:state.persons,items:state.items.map(i=>{const j=Object.assign({},i);delete j.pendingSync;return j;}),history:state.history,batches:state.batches,subscriptions:state.subscriptions,deletedSubs:state.deletedSubs,deletedItems:state.deletedItems,deletedCats:state.deletedCats,subDeletedAt:state.subDeletedAt,settings:state.settings,updatedAt:state.updatedAt,app:'gymnasieschema',v:2};}
 // tombstones vid explicit borttagning – gör att borttagningar sprids och att
 // borttagna poster/kategorier aldrig återuppstår vid molnsynk.
 function tombstoneItems(ids){if(!Array.isArray(state.deletedItems))state.deletedItems=[];const set=new Set(state.deletedItems);ids.forEach(id=>{if(id)set.add(id);});state.deletedItems=[...set].slice(-8000);}
@@ -1866,20 +1882,34 @@ function applyCloud(data){
   if(Array.isArray(data.batches))state.batches=data.batches;
   if(data.settings){const d=defaultSettings();state.settings=Object.assign({},d,data.settings);state.settings.brand=Object.assign({},d.brand,data.settings.brand||{});}
 
-  // PRENUMERATIONER: union (nyckel = URL) minus tombstones. Se tidigare.
+  // PRENUMERATIONER: union per URL. En URL är "raderad" endast om den senaste
+  // RADERINGEN (subDeletedAt) är nyare än den senaste (ÅTER)LÄGGNINGEN (addedAt).
+  // Det gör att en återlagd länk durabelt vinner över en gammal tombstone – även
+  // efter omladdning och över flera enheter (tidsstämplarna synkas i molnet).
   const cloudSubs=Array.isArray(data.subscriptions)?data.subscriptions:[];
-  const subTombs=new Set([...(state.deletedSubs||[]),...((Array.isArray(data.deletedSubs)?data.deletedSubs:[]))]);
-  // Prenumerationer som användaren uttryckligen (åter)lagt till den här sessionen
-  // får aldrig filtreras bort av en gammal tombstone (lokal eller i molnet).
-  _revivedSubKeys.forEach(k=>subTombs.delete(k));
-  const subMap=new Map();
-  cloudSubs.forEach(s=>{const k=subKey(s);if(k&&!subTombs.has(k))subMap.set(k,s);});
-  localSubs.forEach(s=>{const k=subKey(s);if(k&&!subTombs.has(k))subMap.set(k,s);});
-  const mergedSubs=[...subMap.values()].map(s=>Object.assign({},s));
-  mergedSubs.forEach(s=>{if(!s.id)s.id='sub'+uid();});
-  state.subscriptions=mergedSubs;state.deletedSubs=[...subTombs].slice(-500);
+  // Slå ihop raderingstidsstämplar (nyaste vinner); veckla in ev. gamla
+  // deletedSubs-strängar (utan tid) som svagaste (ts=0).
+  const delAt={};
+  foldSubDeletedAt(delAt,state.subDeletedAt,state.deletedSubs);
+  foldSubDeletedAt(delAt,data.subDeletedAt,data.deletedSubs);
+  // Kandidater per URL – välj den med störst addedAt vid krock.
+  const cand=new Map();
+  const consider=s=>{const k=subKey(s);if(!k)return;const ex=cand.get(k);if(!ex||(+s.addedAt||0)>(+ex.addedAt||0))cand.set(k,s);};
+  cloudSubs.forEach(consider);localSubs.forEach(consider);
+  // Uttrycklig återläggning denna session: tvinga live (även mot molnets tombstone).
+  _revivedSubKeys.forEach(k=>{if(cand.has(k))delAt[k]=-1;});
+  const mergedSubs=[];const deadKeys=new Set();
+  cand.forEach((s,k)=>{const dt=(k in delAt)?delAt[k]:-Infinity;const at=(+s.addedAt||0);
+    if(dt<0||at>=dt)mergedSubs.push(Object.assign({},s));else deadKeys.add(k);});
+  // Nycklar som är raderade och saknar en live-sub räknas som döda (feed-städning + backcompat).
+  for(const k in delAt){if(!cand.has(k))deadKeys.add(k);}
+  const liveKeys=new Set(mergedSubs.map(s=>subKey(s)));liveKeys.forEach(k=>deadKeys.delete(k));
+  mergedSubs.forEach(s=>{if(!s.id)s.id='sub'+uid();if(typeof s.addedAt!=='number')s.addedAt=0;});
+  state.subscriptions=mergedSubs;
+  state.subDeletedAt={};for(const k in delAt){if(delAt[k]>=0)state.subDeletedAt[k]=delAt[k];}
+  state.deletedSubs=[...deadKeys].slice(-500);
   const liveSubIds=new Set(mergedSubs.map(s=>s.id));
-  const droppedLocalSubIds=new Set((state.subscriptions?localSubs:[]).filter(s=>subTombs.has(subKey(s))).map(s=>s.id));
+  const droppedLocalSubIds=new Set((localSubs||[]).filter(s=>deadKeys.has(subKey(s))).map(s=>s.id));
 
   // KATEGORIER: union per id minus tombstones. En kategori försvinner aldrig
   // via synk – bara genom att raderas (tombstone).
