@@ -334,7 +334,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.8.6";
+const APP_VERSION="2.8.7";
 const APP_BUILD="2026-08-22";
 const MASTER_CODE="333900";
 
@@ -1573,17 +1573,32 @@ async function refreshSubscription(sub,opts={}){
   try{
     const text=await fetchFeedText(sub);const events=parseICS(text);const t=todayStr();
     const url=normFeedUrl(sub.url);
-    // ta bort denna prenumerations framtida poster – matcha både feedId och feedUrl
-    // (union-merge kan ge poster med annat feedId men samma URL) så inga blir kvar.
-    const rmIds=new Set(state.items.filter(i=>i.source==='feed'&&i.date&&i.date>=t&&(i.feedId===sub.id||i.feedUrl===url)).map(i=>i.id));
-    state.items=state.items.filter(i=>!rmIds.has(i.id));
-    // en enda batch per prenumeration (key) -> bara senaste uppdateringen behålls i historiken
-    const batchId=logBatch('feed',`Prenumeration ”${sub.name}” · ${personName(sub.personId)}`,0,sub.personId,'feed:'+sub.id);let n=0;const newIds=[];const seen=new Set();
+    // Bygg de nya framtida posterna FÖRST (utan att röra befintliga).
+    const seen=new Set();const fresh=[];
     events.forEach(ev=>{if(!ev.date||ev.date<t)return;
       // stabilt id per URL+händelse -> union dedupar och uppdateringar samlar inte på sig dubbletter
       const fid='fd_'+hash32(url+'|'+(ev.uid||'')+'|'+ev.date+'|'+ev.start+'|'+ev.end+'|'+ev.title);
       if(seen.has(fid))return;seen.add(fid);
-      state.items.push({id:fid,type:'activity',title:ev.title,description:ev.description,date:ev.date,start:ev.start,end:ev.end,location:ev.location,personId:sub.personId,source:'feed',feedId:sub.id,feedUrl:url,batchId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});newIds.push(fid);n++;});
+      fresh.push({id:fid,type:'activity',title:ev.title,description:ev.description,date:ev.date,start:ev.start,end:ev.end,location:ev.location,personId:sub.personId,source:'feed',feedId:sub.id,feedUrl:url,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});});
+    // Befintliga framtida poster för denna prenumeration – matcha både feedId och feedUrl
+    // (union-merge kan ge poster med annat feedId men samma URL).
+    const existingFuture=state.items.filter(i=>i.source==='feed'&&i.date&&i.date>=t&&(i.feedId===sub.id||i.feedUrl===url));
+    // SKYDD: ett giltigt men tomt svar (transient nätverks-/proxyfel eller tillfälligt
+    // tom feed) får ALDRIG radera befintliga poster. Behåll dem och försök igen nästa gång.
+    // Detta var orsaken till att t.ex. SSTK-posterna försvann med jämna mellanrum.
+    if(!fresh.length && existingFuture.length){
+      sub.lastSync=Date.now();sub.lastCount=existingFuture.length;sub.syncing=false;sub.lastEmpty=true;
+      logBatch('feed',`Prenumeration ”${sub.name}” · ${personName(sub.personId)}`,existingFuture.length,sub.personId,'feed:'+sub.id);
+      logHistory('import',null,`Prenumeration ”${sub.name}”: tomt svar – behöll ${existingFuture.length} tidigare poster`,[],'feed:'+sub.id);
+      save();if(!opts.silent){render();toast('Tomt svar – behöll tidigare poster');}return 0;
+    }
+    sub.lastEmpty=false;
+    // Ersätt: ta bort befintliga framtida poster och lägg in de nya.
+    const rmIds=new Set(existingFuture.map(i=>i.id));
+    state.items=state.items.filter(i=>!rmIds.has(i.id));
+    // en enda batch per prenumeration (key) -> bara senaste uppdateringen behålls i historiken
+    const batchId=logBatch('feed',`Prenumeration ”${sub.name}” · ${personName(sub.personId)}`,0,sub.personId,'feed:'+sub.id);let n=0;const newIds=[];
+    fresh.forEach(f=>{f.batchId=batchId;state.items.push(f);newIds.push(f.id);n++;});
     dedupeFeedItems();
     const b=state.batches.find(x=>x.id===batchId);if(b)b.count=n;
     sub.lastSync=Date.now();sub.lastCount=n;sub.syncing=false;
