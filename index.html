@@ -334,7 +334,7 @@
 (function(){
 "use strict";
 
-const APP_VERSION="2.8.8";
+const APP_VERSION="2.8.9";
 const APP_BUILD="2026-08-22";
 const MASTER_CODE="333900";
 
@@ -1618,8 +1618,16 @@ async function refreshSubscription(sub,opts={}){
     }
     sub.lastEmpty=false;
     // Ersätt: ta bort befintliga framtida poster och lägg in de nya.
+    const freshIds=new Set(fresh.map(f=>f.id));
     const rmIds=new Set(existingFuture.map(i=>i.id));
     state.items=state.items.filter(i=>!rmIds.has(i.id));
+    // Poster som verkligen försvunnit (fanns förut men inte i nya svaret) tombstonas
+    // så union-synken inte återuppväcker gamla/ändrade poster (annars "uppdateras bara
+    // vissa poster"). Poster som är kvar (samma stabila id) tombstonas INTE.
+    const goneIds=[...rmIds].filter(id=>!freshIds.has(id));
+    if(goneIds.length)tombstoneItems(goneIds);
+    // De nya posternas id får inte ligga kvar som tombstones (om de tidigare försvunnit).
+    if(Array.isArray(state.deletedItems)&&freshIds.size)state.deletedItems=state.deletedItems.filter(id=>!freshIds.has(id));
     // en enda batch per prenumeration (key) -> bara senaste uppdateringen behålls i historiken
     const batchId=logBatch('feed',`Prenumeration ”${sub.name}” · ${personName(sub.personId)}`,0,sub.personId,'feed:'+sub.id);let n=0;const newIds=[];
     fresh.forEach(f=>{f.batchId=batchId;state.items.push(f);newIds.push(f.id);n++;});
@@ -1647,11 +1655,23 @@ function autoSyncSubscriptions(){
     else if(ui.tab==='schedule'||ui.tab==='start'||ui.tab==='list')render();
   }).catch(()=>{_autoSyncing=false;});
 }
-function saveSubscription(data){if(data.id){const s=state.subscriptions.find(x=>x.id===data.id);if(s)Object.assign(s,data);}else{state.subscriptions.push(Object.assign({active:true,lastSync:0,lastError:''},data,{id:'sub'+uid()}));}save();}
+// Nycklar (URL) för prenumerationer som användaren (åter)lagt till den här sessionen.
+// Skyddar dem från en kvarvarande tombstone (lokal eller i molnet) vid union-merge.
+const _revivedSubKeys=new Set();
+function saveSubscription(data){
+  const s0=data.id?state.subscriptions.find(x=>x.id===data.id):null;
+  if(s0){Object.assign(s0,data);}
+  else{state.subscriptions.push(Object.assign({active:true,lastSync:0,lastError:''},data,{id:'sub'+uid()}));}
+  // (Åter)läggning: häv ev. tombstone för denna URL så den inte tas bort av synken.
+  const sub=s0||state.subscriptions[state.subscriptions.length-1];
+  const k=subKey(sub);
+  if(k){_revivedSubKeys.add(k);if(Array.isArray(state.deletedSubs))state.deletedSubs=state.deletedSubs.filter(x=>x!==k);}
+  save();
+}
 function deleteSubscription(subId,alsoItems){
   const sub=state.subscriptions.find(s=>s.id===subId);
   if(!Array.isArray(state.deletedSubs))state.deletedSubs=[];
-  if(sub){const k=subKey(sub);if(k&&!state.deletedSubs.includes(k))state.deletedSubs.push(k);}   // tombstone (URL) – synkas, hindrar återuppståndelse
+  if(sub){const k=subKey(sub);if(k){_revivedSubKeys.delete(k);if(!state.deletedSubs.includes(k))state.deletedSubs.push(k);}}   // tombstone (URL) – synkas, hindrar återuppståndelse
   const url=sub?normFeedUrl(sub.url):null;
   state.subscriptions=state.subscriptions.filter(s=>s.id!==subId);
   // Att ta bort prenumerationen är enda sättet att ta bort prenumererat data:
@@ -1849,6 +1869,9 @@ function applyCloud(data){
   // PRENUMERATIONER: union (nyckel = URL) minus tombstones. Se tidigare.
   const cloudSubs=Array.isArray(data.subscriptions)?data.subscriptions:[];
   const subTombs=new Set([...(state.deletedSubs||[]),...((Array.isArray(data.deletedSubs)?data.deletedSubs:[]))]);
+  // Prenumerationer som användaren uttryckligen (åter)lagt till den här sessionen
+  // får aldrig filtreras bort av en gammal tombstone (lokal eller i molnet).
+  _revivedSubKeys.forEach(k=>subTombs.delete(k));
   const subMap=new Map();
   cloudSubs.forEach(s=>{const k=subKey(s);if(k&&!subTombs.has(k))subMap.set(k,s);});
   localSubs.forEach(s=>{const k=subKey(s);if(k&&!subTombs.has(k))subMap.set(k,s);});
